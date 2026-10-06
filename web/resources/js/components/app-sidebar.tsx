@@ -1,50 +1,30 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { LogOut } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
+    SidebarGroup,
+    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
-
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-];
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
+import { mainNavItems, upcomingNavItems } from '@/lib/admin-nav';
+import { logout } from '@/routes';
 
 export function AppSidebar() {
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" className="print:hidden">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={mainNavItems[0].href} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
@@ -54,11 +34,44 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+
+                {/* Menu sprint berikutnya — tampil sesuai desain, belum aktif */}
+                <SidebarGroup className="px-2 py-0">
+                    <SidebarGroupLabel>Segera Hadir</SidebarGroupLabel>
+                    <SidebarMenu>
+                        {upcomingNavItems.map((item) => (
+                            <SidebarMenuItem key={item.title}>
+                                <SidebarMenuButton
+                                    disabled
+                                    tooltip={{
+                                        children: `${item.title} — hadir pada ${item.sprint}`,
+                                    }}
+                                >
+                                    {item.icon && <item.icon />}
+                                    <span>{item.title}</span>
+                                    <span className="ml-auto text-[0.6rem] font-medium tracking-wide text-muted-foreground uppercase">
+                                        {item.sprint}
+                                    </span>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroup>
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
-                <NavUser />
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            tooltip={{ children: 'Keluar' }}
+                            onClick={() => router.post(logout())}
+                        >
+                            <LogOut />
+                            <span>Keluar</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <NavUser />
+                </SidebarMenu>
             </SidebarFooter>
         </Sidebar>
     );

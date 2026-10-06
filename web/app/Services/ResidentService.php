@@ -23,10 +23,7 @@ class ResidentService
     public function list(array $filters = [], int $perPage = 10): LengthAwarePaginator
     {
         $query = Resident::query()
-            ->with([
-                'user' => fn ($user) => $user->select('id', 'name', 'email', 'phone'),
-                'activeBooking.room' => fn ($room) => $room->select('id', 'room_number', 'type'),
-            ])
+            ->with(['user', 'activeBooking.room', 'activeBooking.invoices.payments'])
             ->when($filters['q'] ?? null, function (Builder $query, string $q) {
                 $query->where(function (Builder $inner) use ($q) {
                     $inner->where('full_name', 'like', "%{$q}%")
@@ -35,24 +32,26 @@ class ResidentService
                 });
             })
             ->when(($filters['with_room'] ?? null) === '1', fn (Builder $query) => $query->whereHas('activeBooking'))
-            ->withCount(['bookings as active_bookings_count' => fn (Builder $b) => $b->where('status', 'aktif')])
             ->orderBy('full_name');
 
-        // Filter status pembayaran dihitung setelah query (status tidak
-        // disimpan langsung, melainkan diturunkan dari tagihan bulan ini).
+        // Status pembayaran bukan kolom, melainkan diturunkan dari tagihan
+        // bulan berjalan — karena itu difilter lewat daftar id penghuni yang
+        // statusnya cocok (agar paginasi tetap akurat).
+        if ($statusFilter = $filters['status'] ?? null) {
+            $matchingIds = (clone $query)->get()
+                ->filter(fn (Resident $resident) => $this->paymentStatus($resident) === $statusFilter)
+                ->pluck('id');
+
+            $query->whereIn('id', $matchingIds);
+        }
+
         $residents = $query->paginate($perPage)->withQueryString();
 
-        $statusFilter = $filters['status'] ?? null;
         $residents->getCollection()->transform(function (Resident $resident) {
             $resident->payment_status = $this->paymentStatus($resident);
 
             return $resident;
         });
-
-        if ($statusFilter) {
-            $filtered = $residents->getCollection()->where('payment_status', $statusFilter);
-            $residents->setCollection($filtered->values());
-        }
 
         return $residents;
     }
@@ -60,6 +59,8 @@ class ResidentService
     /**
      * Status pembayaran penghuni untuk bulan berjalan:
      * lunas | menunggu_verifikasi | belum_bayar | tanpa_tagihan
+     *
+     * Bekerja dengan relasi eager-loaded maupun lazy (collection).
      */
     public function paymentStatus(Resident $resident): string
     {
@@ -69,18 +70,14 @@ class ResidentService
             return 'tanpa_tagihan';
         }
 
-        $currentPeriod = now()->format('Y-m');
-
-        $invoice = $booking->invoices()
-            ->where('period', $currentPeriod)
-            ->first();
+        $invoice = $booking->invoices->firstWhere('period', now()->format('Y-m'));
 
         // Belum ada tagihan untuk bulan ini (mis. sewa belum masuk siklus).
         if (! $invoice) {
             return 'lunas';
         }
 
-        if ($invoice->payments()->where('status', 'pending')->exists()) {
+        if ($invoice->payments->contains('status', 'pending')) {
             return 'menunggu_verifikasi';
         }
 
@@ -93,7 +90,7 @@ class ResidentService
     public function stats(): array
     {
         $residents = Resident::query()
-            ->with('activeBooking.room')
+            ->with(['activeBooking.invoices.payments'])
             ->has('activeBooking')
             ->get();
 

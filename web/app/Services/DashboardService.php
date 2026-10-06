@@ -64,10 +64,7 @@ class DashboardService
     {
         return Resident::query()
             ->whereHas('activeBooking')
-            ->with([
-                'activeBooking' => fn ($booking) => $booking->select('id', 'resident_id', 'room_id', 'start_date'),
-                'activeBooking.room' => fn ($room) => $room->select('id', 'room_number'),
-            ])
+            ->with(['activeBooking.room'])
             ->latest('created_at')
             ->limit(6)
             ->get(['id', 'full_name', 'created_at'])
