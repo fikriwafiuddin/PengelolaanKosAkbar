@@ -1,0 +1,145 @@
+// Sistem Informasi Pengelolaan Kost Akbar — Kelompok 3 PTT
+// Laravel REST API + MySQL + Flutter mobile & Web Admin
+
+Table users {
+  id bigint [pk, increment]
+  name varchar(100) [not null]
+  email varchar(150) [not null, unique]
+  password varchar(255) [not null]
+  role enum('admin','penghuni') [not null, default: 'penghuni']
+  phone varchar(20)
+  created_at timestamp [not null, default: `now()`]
+
+  Note: 'Akun untuk login mobile (penghuni) dan dashboard web (admin)'
+}
+
+Table residents {
+  id bigint [pk, increment]
+  user_id bigint [not null, unique]
+  full_name varchar(150) [not null]
+  identity_number varchar(30) [not null]
+  birth_date date
+  address text
+  occupation varchar(100)
+  created_at timestamp [not null, default: `now()`]
+
+  Note: 'Profil identitas penghuni (1:1 dengan akun users)'
+}
+
+Table rooms {
+  id bigint [pk, increment]
+  room_number varchar(10) [not null, unique]
+  type varchar(50) [not null]
+  price_monthly decimal(12,2) [not null]
+  status enum('kosong','terisi','terbooking') [not null, default: 'kosong']
+  description text
+  created_at timestamp [not null, default: `now()`]
+
+  Note: 'Data kamar: nomor, tipe, harga, status ketersediaan real-time'
+}
+
+Table facilities {
+  id bigint [pk, increment]
+  name varchar(100) [not null, unique]
+  Note: 'Fasilitas kamar (AC, WiFi, kamar mandi dalam, ...)'
+}
+
+Table room_facility {
+  id bigint [pk, increment]
+  room_id bigint [not null]
+  facility_id bigint [not null]
+  Note: 'Junction kamar <-> fasilitas (many-to-many)'
+}
+
+Table bookings {
+  id bigint [pk, increment]
+  resident_id bigint [not null]
+  room_id bigint [not null]
+  start_date date [not null]
+  duration_months int [not null]
+  status enum('menunggu','aktif','selesai','batal') [not null, default: 'menunggu']
+  note text
+  created_at timestamp [not null, default: `now()`]
+
+  Note: 'Pemesanan kamar: tanggal mulai + durasi sewa'
+}
+
+Table invoices {
+  id bigint [pk, increment]
+  booking_id bigint [not null]
+  period varchar(7) [not null]
+  amount decimal(12,2) [not null]
+  due_date date [not null]
+  status enum('belum_bayar','lunas') [not null, default: 'belum_bayar']
+  created_at timestamp [not null, default: `now()`]
+
+  Note: 'Tagihan sewa bulanan per periode (YYYY-MM)'
+}
+
+Table payments {
+  id bigint [pk, increment]
+  invoice_id bigint [not null]
+  user_id bigint [not null]
+  amount decimal(12,2) [not null]
+  method enum('transfer','tunai') [not null, default: 'transfer']
+  proof_path varchar(255)
+  receipt_no varchar(30) [unique]
+  status enum('pending','terverifikasi','ditolak') [not null, default: 'pending']
+  verified_by bigint
+  paid_at datetime
+  verified_at datetime
+
+  Note: 'Pembayaran + bukti transfer; diverifikasi admin; receipt_no untuk kuitansi'
+}
+
+Table expenses {
+  id bigint [pk, increment]
+  expense_date date [not null]
+  category varchar(80) [not null]
+  description text
+  amount decimal(12,2) [not null]
+  created_by bigint [not null]
+  created_at timestamp [not null, default: `now()`]
+
+  Note: 'Pengeluaran operasional kos (bahan laporan kas & laba bulanan)'
+}
+
+Table chat_rooms {
+  id bigint [pk, increment]
+  name varchar(100) [not null]
+  description text
+  Note: 'Grup chat: pengumuman resmi & diskusi penghuni'
+}
+
+Table chat_room_members {
+  id bigint [pk, increment]
+  chat_room_id bigint [not null]
+  user_id bigint [not null]
+  joined_at timestamp [not null, default: `now()`]
+}
+
+Table messages {
+  id bigint [pk, increment]
+  chat_room_id bigint [not null]
+  user_id bigint [not null]
+  body text [not null]
+  is_announcement boolean [not null, default: false]
+  created_at timestamp [not null, default: `now()`]
+
+  Note: 'Pesan chat; is_announcement untuk pengumuman resmi admin'
+}
+
+Ref: residents.user_id > users.id
+Ref: bookings.resident_id > residents.id
+Ref: bookings.room_id > rooms.id
+Ref: invoices.booking_id > bookings.id
+Ref: payments.invoice_id > invoices.id
+Ref: payments.user_id > users.id
+Ref: payments.verified_by > users.id
+Ref: expenses.created_by > users.id
+Ref: messages.chat_room_id > chat_rooms.id
+Ref: messages.user_id > users.id
+Ref: chat_room_members.chat_room_id > chat_rooms.id
+Ref: chat_room_members.user_id > users.id
+Ref: room_facility.room_id > rooms.id
+Ref: room_facility.facility_id > facilities.id
