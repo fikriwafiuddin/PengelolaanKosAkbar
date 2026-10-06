@@ -88,6 +88,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             address: _address.text.trim(),
             occupation: _occupation.text.trim(),
           );
+
+      // Registrasi berhasil -> status loggedIn; buang halaman registrasi
+      // dari tumpukan agar MainShell (halaman dasar) terlihat.
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } on ApiException catch (e) {
       setState(() {
         _error = e.message;

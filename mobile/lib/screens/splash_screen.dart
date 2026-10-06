@@ -1,25 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 
-/// Halaman pembuka: cek sesi login lalu arahkan ke Login / Beranda.
-class SplashScreen extends StatefulWidget {
+/// Halaman pembuka — murni tampilan; pemilihan halaman berikutnya
+/// (Login / Beranda) ditangani oleh AuthGate.
+class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthProvider>().bootstrap();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {

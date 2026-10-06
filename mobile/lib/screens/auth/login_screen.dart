@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import 'register_screen.dart';
 
 /// Halaman login penghuni (desain: kartu putih di atas latar krem).
 class LoginScreen extends StatefulWidget {
@@ -175,7 +176,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(color: AppColors.textMuted, fontSize: 13.5),
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.of(context).pushNamed('/register'),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        ),
                         child: const Text(
                           'Daftar di sini',
                           style: TextStyle(
