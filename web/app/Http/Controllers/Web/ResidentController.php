@@ -19,14 +19,24 @@ class ResidentController extends Controller
     /**
      * GET /residents — halaman Data Penghuni.
      */
+    // public function index(Request $request): Response
+    // {
+    //     $filters = $request->only(['q', 'status', 'with_room']);
+
+    //     return Inertia::render('residents/index', [
+    //         'residents' => $this->residents->list($filters),
+    //         'filters' => $filters,
+    //         'stats' => $this->residents->stats(),
+    //     ]);
+    // }
     public function index(Request $request): Response
     {
-        $filters = $request->only(['q', 'status', 'with_room']);
+        $filters = $request->only(['q']);
 
         return Inertia::render('residents/index', [
             'residents' => $this->residents->list($filters),
             'filters' => $filters,
-            'stats' => $this->residents->stats(),
+            // 'stats' => $this->residents->stats(),
         ]);
     }
 }

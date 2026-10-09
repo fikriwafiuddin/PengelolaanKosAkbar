@@ -22,38 +22,50 @@ class ResidentService
      */
     public function list(array $filters = [], int $perPage = 10): LengthAwarePaginator
     {
-        $query = Resident::query()
-            ->with(['user', 'activeBooking.room', 'activeBooking.invoices.payments'])
-            ->when($filters['q'] ?? null, function (Builder $query, string $q) {
-                $query->where(function (Builder $inner) use ($q) {
-                    $inner->where('full_name', 'like', "%{$q}%")
-                        ->orWhereHas('user', fn (Builder $u) => $u->where('email', 'like', "%{$q}%"))
-                        ->orWhereHas('activeBooking.room', fn (Builder $r) => $r->where('room_number', 'like', "%{$q}%"));
-                });
-            })
-            ->when(($filters['with_room'] ?? null) === '1', fn (Builder $query) => $query->whereHas('activeBooking'))
-            ->orderBy('full_name');
+        // $query = Resident::query()
+        //     ->with(['user', 'activeBooking.room', 'activeBooking.invoices.payments'])
+        //     ->when($filters['q'] ?? null, function (Builder $query, string $q) {
+        //         $query->where(function (Builder $inner) use ($q) {
+        //             $inner->where('full_name', 'like', "%{$q}%")
+        //                 ->orWhereHas('user', fn (Builder $u) => $u->where('email', 'like', "%{$q}%"))
+        //                 ->orWhereHas('activeBooking.room', fn (Builder $r) => $r->where('room_number', 'like', "%{$q}%"));
+        //         });
+        //     })
+        //     ->when(($filters['with_room'] ?? null) === '1', fn (Builder $query) => $query->whereHas('activeBooking'))
+        //     ->orderBy('full_name');
 
         // Status pembayaran bukan kolom, melainkan diturunkan dari tagihan
         // bulan berjalan — karena itu difilter lewat daftar id penghuni yang
         // statusnya cocok (agar paginasi tetap akurat).
-        if ($statusFilter = $filters['status'] ?? null) {
-            $matchingIds = (clone $query)->get()
-                ->filter(fn (Resident $resident) => $this->paymentStatus($resident) === $statusFilter)
-                ->pluck('id');
+        // if ($statusFilter = $filters['status'] ?? null) {
+        //     $matchingIds = (clone $query)->get()
+        //         ->filter(fn (Resident $resident) => $this->paymentStatus($resident) === $statusFilter)
+        //         ->pluck('id');
 
-            $query->whereIn('id', $matchingIds);
-        }
+        //     $query->whereIn('id', $matchingIds);
+        // }
 
-        $residents = $query->paginate($perPage)->withQueryString();
+        // $residents = $query->paginate($perPage)->withQueryString();
 
-        $residents->getCollection()->transform(function (Resident $resident) {
-            $resident->payment_status = $this->paymentStatus($resident);
+        // $residents->getCollection()->transform(function (Resident $resident) {
+        //     $resident->payment_status = $this->paymentStatus($resident);
 
-            return $resident;
-        });
+        //     return $resident;
+        // });
 
-        return $residents;
+        // return $residents;
+        return Resident::query()
+            ->with(['user', 'activeBooking.room'])
+            ->when($filters['q'] ?? null, function (Builder $query, string $q) {
+                $query->where(function (Builder $inner) use ($q) {
+                    $inner->where('full_name', 'like', "%{$q}%")
+                        ->orWhere('identity_number', 'like', "%{$q}%")
+                        ->orWhereHas('activeBooking.room', fn (Builder $r) => $r->where('room_number', 'like', "%{$q}%"));
+                });
+            })
+            ->orderBy('full_name')
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
     /**
