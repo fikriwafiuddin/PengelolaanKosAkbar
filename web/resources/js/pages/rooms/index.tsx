@@ -40,7 +40,7 @@ import type {
 
 type Props = {
     rooms: Pagination<Room>;
-    filters: { q?: string; type?: string; status?: string };
+    filters: { q?: string; type?: string; status?: string; sort?: string };
     facilities: Facility[];
     types: string[];
     stats: RoomStats;
@@ -227,6 +227,20 @@ export default function RoomsIndex({ rooms: roomPagination, filters, facilities,
                             <SelectItem value="terbooking">Terbooking</SelectItem>
                         </SelectContent>
                     </Select>
+                    <Select
+                        value={filters.sort ?? 'asc'}
+                        onValueChange={(v) =>
+                            applyFilters({ sort: v === 'asc' ? undefined : v })
+                        }
+                    >
+                        <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Urutkan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="asc">Kamar 1 → 29</SelectItem>
+                            <SelectItem value="desc">Kamar 29 → 1</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* Tabel kamar */}
@@ -235,7 +249,8 @@ export default function RoomsIndex({ rooms: roomPagination, filters, facilities,
                         <Table>
                             <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="pl-6">No. Kamar</TableHead>
+                                    <TableHead className="pl-6">Foto</TableHead>
+                                    <TableHead>No. Kamar</TableHead>
                                     <TableHead>Tipe / Lantai</TableHead>
                                     <TableHead>Harga</TableHead>
                                     <TableHead>Fasilitas</TableHead>
@@ -246,7 +261,20 @@ export default function RoomsIndex({ rooms: roomPagination, filters, facilities,
                             <TableBody>
                                 {roomPagination.data.map((room) => (
                                     <TableRow key={room.id}>
-                                        <TableCell className="pl-6 font-medium">
+                                        <TableCell className="pl-6">
+                                            {room.image_url ? (
+                                                <img
+                                                    src={room.image_url}
+                                                    alt={`Foto Kamar ${room.room_number}`}
+                                                    className="size-11 rounded-lg border border-border/60 object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex size-11 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40">
+                                                    <BedDouble className="size-4 text-muted-foreground" />
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="font-medium">
                                             Kamar {room.room_number}
                                             {room.description && (
                                                 <p className="max-w-56 truncate text-xs font-normal text-muted-foreground">
@@ -304,7 +332,7 @@ export default function RoomsIndex({ rooms: roomPagination, filters, facilities,
                                 {roomPagination.data.length === 0 && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={6}
+                                            colSpan={7}
                                             className="py-10 text-center text-muted-foreground"
                                         >
                                             Tidak ada kamar yang cocok dengan

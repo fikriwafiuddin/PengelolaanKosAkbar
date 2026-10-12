@@ -17,6 +17,7 @@ export type Room = {
     status: RoomStatus;
     status_label: string;
     description: string | null;
+    image_url?: string | null;
     facilities: Facility[];
 };
 
@@ -47,12 +48,16 @@ export type Resident = {
     birth_date: string | null;
     address: string | null;
     occupation: string | null;
+    guardian_name?: string | null;
+    guardian_phone?: string | null;
     payment_status?: ResidentPaymentStatus;
     user?: {
         id: number;
         name: string;
         email: string;
         phone: string | null;
+        status: string;
+        status_label?: string;
     } | null;
     active_booking?: {
         start_date: string;

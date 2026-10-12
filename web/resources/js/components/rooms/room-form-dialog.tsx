@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { Pencil, Plus } from 'lucide-react';
+import { ImagePlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import InputError from '@/components/input-error';
@@ -34,7 +34,7 @@ type Props = {
     room?: Room;
 };
 
-type FormData = {
+type FormValues = {
     room_number: string;
     type: string;
     price_monthly: string;
@@ -50,15 +50,22 @@ const STATUS_OPTIONS: { value: RoomStatus; label: string }[] = [
 ];
 
 /**
- * Dialog tambah/ubah kamar — dipakai di halaman Data Kamar.
+ * Dialog tambah/ubah kamar — termasuk unggah/ganti/hapus foto kamar.
+ * Submit memakai FormData (multipart) agar berkas gambar ikut terkirim.
  */
 export function RoomFormDialog({ facilities, types, room }: Props) {
     const isEdit = room !== undefined;
     const { errors } = usePage().props;
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [open, setOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
-    const [data, setData] = useState<FormData>({
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(
+        room?.image_url ?? null,
+    );
+    const [removeImage, setRemoveImage] = useState(false);
+    const [data, setData] = useState<FormValues>({
         room_number: room?.room_number ?? '',
         type: room?.type ?? types[0] ?? '',
         price_monthly: room?.price_monthly?.toString() ?? '',
@@ -68,7 +75,7 @@ export function RoomFormDialog({ facilities, types, room }: Props) {
     });
 
     /** Perbarui satu field formulir secara imutabel. */
-    function setField<K extends keyof FormData>(key: K, value: FormData[K]) {
+    function setField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
         setData((prev) => ({ ...prev, [key]: value }));
     }
 
@@ -83,6 +90,9 @@ export function RoomFormDialog({ facilities, types, room }: Props) {
                 description: '',
                 facility_ids: [],
             });
+            setImageFile(null);
+            setImagePreview(null);
+            setRemoveImage(false);
         }
     }, [open, isEdit, types]);
 
@@ -95,7 +105,42 @@ export function RoomFormDialog({ facilities, types, room }: Props) {
         }));
     }
 
+    /** Pilih berkas gambar baru; tampilkan pratinjau lokal. */
+    function pickImage(file: File | undefined) {
+        if (!file) {
+            return;
+        }
+
+        setImageFile(file);
+        setRemoveImage(false);
+        setImagePreview(URL.createObjectURL(file));
+    }
+
+    /** Hapus pilihan gambar (kembali ke foto lama bila ada). */
+    function clearImage() {
+        setImageFile(null);
+        setImagePreview(null);
+        setRemoveImage(Boolean(room?.image_url));
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
+
     function submit(close: () => void) {
+        // FormData (multipart) — Inertia otomatis mengatur header.
+        const formData = new FormData();
+        formData.append('room_number', data.room_number);
+        formData.append('type', data.type);
+        formData.append('price_monthly', data.price_monthly);
+        formData.append('status', data.status);
+        formData.append('description', data.description ?? '');
+        formData.append('remove_image', removeImage ? '1' : '0');
+        data.facility_ids.forEach((id) => formData.append('facility_ids[]', String(id)));
+
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+
         const options = {
             preserveScroll: true,
             onSuccess: () => {
@@ -112,9 +157,11 @@ export function RoomFormDialog({ facilities, types, room }: Props) {
         setProcessing(true);
 
         if (isEdit && room) {
-            router.put(roomsRoutes.update({ room: room.id }), data, options);
+            // Method spoofing PUT untuk FormData.
+            formData.append('_method', 'PUT');
+            router.post(roomsRoutes.update({ room: room.id }), formData, options);
         } else {
-            router.post(roomsRoutes.store(), data, options);
+            router.post(roomsRoutes.store(), formData, options);
         }
     }
 
@@ -140,11 +187,62 @@ export function RoomFormDialog({ facilities, types, room }: Props) {
                             : 'Tambah Kamar Baru'}
                     </DialogTitle>
                     <DialogDescription>
-                        Lengkapi informasi kamar, harga sewa, dan fasilitasnya.
+                        Lengkapi informasi kamar, harga sewa, fasilitas, dan
+                        fotonya.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4">
+                    {/* Foto kamar */}
+                    <div className="grid gap-2">
+                        <Label htmlFor="room_image">Foto Kamar</Label>
+                        <div className="flex items-start gap-4">
+                            <div className="flex h-24 w-36 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40">
+                                {imagePreview ? (
+                                    <img
+                                        src={imagePreview}
+                                        alt="Pratinjau foto kamar"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <ImagePlus className="size-6 text-muted-foreground" />
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Input
+                                    id="room_image"
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    className="text-xs"
+                                    onChange={(e) =>
+                                        pickImage(e.target.files?.[0])
+                                    }
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    JPG/PNG/WebP, maksimal 2 MB.
+                                </p>
+                                {(imageFile || imagePreview || removeImage) && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-fit gap-1 text-destructive"
+                                        onClick={clearImage}
+                                    >
+                                        <Trash2 className="size-3" /> Hapus Foto
+                                    </Button>
+                                )}
+                                {removeImage && (
+                                    <p className="text-xs text-amber-600">
+                                        Foto akan dihapus saat disimpan.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <InputError message={errors.image} />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="room_number">Nomor Kamar</Label>
