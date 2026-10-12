@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../config/api_config.dart';
 import '../../data/api_client.dart';
 import '../../data/models/room.dart';
 import '../../data/services/room_service.dart';
@@ -56,6 +57,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         ? '-'
         : NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
             .format(room.priceMonthly);
+    final heroImageUrl = ApiConfig.resolveImageUrl(room?.imageUrl);
 
     return Scaffold(
       appBar: AppBar(title: Text(room?.title ?? 'Detail Kamar')),
@@ -76,6 +78,22 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 : ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     children: [
+                      // Foto kamar (bila tersedia)
+                      if (heroImageUrl != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: AspectRatio(
+                            aspectRatio: 16 / 10,
+                            child: Image.network(
+                              heroImageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 16),
+
                       // Kartu utama
                       Card(
                         margin: EdgeInsets.zero,

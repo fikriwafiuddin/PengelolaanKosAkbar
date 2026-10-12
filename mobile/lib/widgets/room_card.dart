@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../config/api_config.dart';
 import '../data/models/room.dart';
 import '../theme/app_theme.dart';
 
@@ -27,17 +28,14 @@ class RoomCard extends StatelessWidget {
             children: [
               // Baris judul + badge status
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.field,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.bed_outlined,
-                      color: AppColors.terracotta,
-                      size: 22,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: _buildLeading(room),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -135,6 +133,35 @@ class RoomCard extends StatelessWidget {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Foto kamar bila tersedia; ikon tempat kosong sebagai fallback.
+  Widget _buildLeading(Room room) {
+    final imageUrl = ApiConfig.resolveImageUrl(room.imageUrl);
+
+    if (imageUrl == null) {
+      return Container(
+        color: AppColors.field,
+        child: const Icon(
+          Icons.bed_outlined,
+          color: AppColors.terracotta,
+          size: 24,
+        ),
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => Container(
+        color: AppColors.field,
+        child: const Icon(
+          Icons.bed_outlined,
+          color: AppColors.terracotta,
+          size: 24,
         ),
       ),
     );

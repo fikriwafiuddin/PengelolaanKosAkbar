@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import 'edit_profile_screen.dart';
 
 /// Profil penghuni: identitas, kamar yang disewa, dan keluar
 /// (aktivitas "Penghuni melihat profil identitas" pada Sprint 1).
@@ -145,6 +146,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 40,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const EditProfileScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      label: const Text('Ubah Profil'),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -249,6 +263,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _infoRow(
                       Icons.cake_outlined, 'Tanggal Lahir', _formatDate(resident?.birthDate)),
                   _infoRow(Icons.work_outline, 'Pekerjaan', resident?.occupation ?? '-'),
+                  _infoRow(Icons.family_restroom, 'Penanggung Jawab',
+                      resident?.guardianName ?? '-'),
+                  _infoRow(Icons.phone_in_talk_outlined,
+                      'No. HP Penanggung Jawab', resident?.guardianPhone ?? '-'),
                   _infoRow(Icons.mail_outline, 'Email', user.email),
                   _infoRow(Icons.phone_outlined, 'No. HP', user.phone ?? '-'),
                   _infoRow(

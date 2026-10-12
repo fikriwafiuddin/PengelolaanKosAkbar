@@ -60,18 +60,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Registrasi calon penghuni. Berhasil = akun dibuat dengan status
+  /// menunggu_validasi — tidak ada sesi login; pemanggil mengarahkan
+  /// pengguna ke halaman menunggu validasi.
   Future<void> register({
     required String email,
     required String password,
     required String passwordConfirmation,
     required String fullName,
     required String identityNumber,
-    String? phone,
-    String? birthDate,
+    required String phone,
+    required String birthDate,
+    required String guardianPhone,
     String? address,
     String? occupation,
+    String? guardianName,
   }) async {
-    final result = await _auth.register(
+    await _auth.register(
       email: email,
       password: password,
       passwordConfirmation: passwordConfirmation,
@@ -79,13 +84,32 @@ class AuthProvider extends ChangeNotifier {
       identityNumber: identityNumber,
       phone: phone,
       birthDate: birthDate,
+      guardianPhone: guardianPhone,
       address: address,
       occupation: occupation,
+      guardianName: guardianName,
     );
+  }
 
-    await _client.saveToken(result.token);
-    _user = result.user;
-    _status = AuthStatus.loggedIn;
+  /// Perbarui profil (dari halaman Ubah Profil) lalu segarkan user aktif.
+  Future<void> updateProfile({
+    required String fullName,
+    required String phone,
+    required String birthDate,
+    required String guardianPhone,
+    String? address,
+    String? occupation,
+    String? guardianName,
+  }) async {
+    _user = await _auth.updateProfile(
+      fullName: fullName,
+      phone: phone,
+      birthDate: birthDate,
+      guardianPhone: guardianPhone,
+      address: address,
+      occupation: occupation,
+      guardianName: guardianName,
+    );
     notifyListeners();
   }
 

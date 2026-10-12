@@ -15,4 +15,19 @@ class ApiConfig {
   );
 
   static const Duration timeout = Duration(seconds: 15);
+
+  /// Gabungkan URL gambar relatif dari API (mis. /storage/rooms/1.png)
+  /// dengan base URL aktif — menghasilkan URL absolut yang dapat
+  /// diakses dari device/emulator mana pun.
+  static String? resolveImageUrl(String? relativeUrl) {
+    if (relativeUrl == null || relativeUrl.isEmpty) {
+      return null;
+    }
+
+    if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+      return relativeUrl;
+    }
+
+    return '$baseUrl${relativeUrl.startsWith('/') ? '' : '/'}$relativeUrl';
+  }
 }

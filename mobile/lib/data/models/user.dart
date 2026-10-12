@@ -7,6 +7,8 @@ class ResidentProfile {
     this.birthDate,
     this.address,
     this.occupation,
+    this.guardianName,
+    this.guardianPhone,
     this.room,
   });
 
@@ -20,6 +22,8 @@ class ResidentProfile {
       birthDate: json['birth_date'] as String?,
       address: json['address'] as String?,
       occupation: json['occupation'] as String?,
+      guardianName: json['guardian_name'] as String?,
+      guardianPhone: json['guardian_phone'] as String?,
       room: roomJson is Map<String, dynamic> ? RoomInfo.fromJson(roomJson) : null,
     );
   }
@@ -30,6 +34,8 @@ class ResidentProfile {
   final String? birthDate;
   final String? address;
   final String? occupation;
+  final String? guardianName;
+  final String? guardianPhone;
   final RoomInfo? room;
 }
 
@@ -64,6 +70,7 @@ class User {
     required this.name,
     required this.email,
     required this.role,
+    this.status,
     this.phone,
     this.resident,
   });
@@ -73,6 +80,7 @@ class User {
         name: json['name'] as String,
         email: json['email'] as String,
         role: json['role'] as String,
+        status: json['status'] as String?,
         phone: json['phone'] as String?,
         resident: json['resident'] is Map<String, dynamic>
             ? ResidentProfile.fromJson(json['resident'] as Map<String, dynamic>)
@@ -83,8 +91,19 @@ class User {
   final String name;
   final String email;
   final String role;
+
+  /// Status akun: menunggu_validasi | aktif | ditolak.
+  final String? status;
   final String? phone;
   final ResidentProfile? resident;
+
+  /// Label status akun dalam bahasa Indonesia.
+  String get statusLabel => switch (status) {
+        'aktif' => 'Aktif',
+        'menunggu_validasi' => 'Menunggu Validasi',
+        'ditolak' => 'Ditolak',
+        _ => status ?? '-',
+      };
 
   /// Inisial nama untuk avatar (mis. "Dimas Pratama" -> "DP").
   String get initials {

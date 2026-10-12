@@ -84,6 +84,18 @@ class ApiClient {
     );
   }
 
+  Future<dynamic> put(String path, {Object? body}) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+
+    return _send(
+      () => _client.put(
+        uri,
+        headers: {..._headers, 'Content-Type': 'application/json'},
+        body: jsonEncode(body ?? {}),
+      ),
+    );
+  }
+
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     late http.Response response;
 

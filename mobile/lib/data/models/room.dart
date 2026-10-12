@@ -15,6 +15,7 @@ class Room {
     required this.status,
     required this.statusLabel,
     required this.description,
+    this.imageUrl,
     required this.facilities,
   });
 
@@ -29,6 +30,7 @@ class Room {
         ),
         statusLabel: json['status_label'] as String? ?? json['status'] as String,
         description: json['description'] as String?,
+        imageUrl: json['image_url'] as String?,
         facilities: (json['facilities'] as List<dynamic>? ?? [])
             .map((e) => Facility.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -41,6 +43,9 @@ class Room {
   final RoomStatus status;
   final String statusLabel;
   final String? description;
+
+  /// URL relatif foto kamar dari API (/storage/rooms/xxx.png).
+  final String? imageUrl;
   final List<Facility> facilities;
 
   /// "Kamar 12".

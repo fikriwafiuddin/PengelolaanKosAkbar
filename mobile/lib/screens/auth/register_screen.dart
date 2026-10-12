@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import '../../data/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import 'waiting_validation_screen.dart';
 
-/// Registrasi calon penghuni: data akun + profil identitas
-/// (mengikuti activity diagram "Apakah sudah punya akun?" -> registrasi).
+/// Registrasi calon penghuni: data akun + profil identitas + kontak
+/// penanggung jawab. Setelah berhasil, pengguna diarahkan ke halaman
+/// menunggu validasi admin (belum bisa login).
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -25,11 +27,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _birthDate = TextEditingController();
   final _address = TextEditingController();
   final _occupation = TextEditingController();
+  final _guardianName = TextEditingController();
+  final _guardianPhone = TextEditingController();
 
   bool _obscurePassword = true;
   bool _processing = false;
   String? _error;
   Map<String, String> _fieldErrors = const {};
+
+  /// Tanggal lahir maksimal agar usia >= 18 tahun.
+  DateTime get _maxBirthDate =>
+      DateTime.now().subtract(const Duration(days: 365 * 18));
 
   @override
   void dispose() {
@@ -42,17 +50,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _birthDate.dispose();
     _address.dispose();
     _occupation.dispose();
+    _guardianName.dispose();
+    _guardianPhone.dispose();
     super.dispose();
   }
 
   Future<void> _pickBirthDate() async {
-    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(now.year - 20),
-      firstDate: DateTime(1950),
-      lastDate: now,
-      helpText: 'Pilih tanggal lahir',
+      initialDate: _maxBirthDate.subtract(const Duration(days: 365 * 5)),
+      firstDate: DateTime(1940),
+      lastDate: _maxBirthDate,
+      helpText: 'Pilih tanggal lahir (usia minimal 18 tahun)',
     );
 
     if (picked != null) {
@@ -85,15 +94,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
             identityNumber: _identityNumber.text.trim(),
             phone: _phone.text.trim(),
             birthDate: _birthDate.text,
+            guardianPhone: _guardianPhone.text.trim(),
             address: _address.text.trim(),
             occupation: _occupation.text.trim(),
+            guardianName: _guardianName.text.trim(),
           );
 
-      // Registrasi berhasil -> status loggedIn; buang halaman registrasi
-      // dari tumpukan agar MainShell (halaman dasar) terlihat.
-      if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+      if (!mounted) {
+        return;
       }
+
+      // Registrasi berhasil -> arahkan ke halaman menunggu validasi.
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => WaitingValidationScreen(fullName: _fullName.text.trim()),
+        ),
+      );
     } on ApiException catch (e) {
       setState(() {
         _error = e.message;
@@ -117,6 +133,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'phone': _phone,
         'address': _address,
         'occupation': _occupation,
+        'guardian_name': _guardianName,
+        'guardian_phone': _guardianPhone,
       };
 
   String? _fieldError(String key) => _fieldErrors[key];
@@ -181,8 +199,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 icon: Icons.badge_outlined,
                 keyboardType: TextInputType.number,
                 errorText: _fieldError('identity_number'),
-                validator: (v) =>
-                    v != null && v.trim().isNotEmpty ? null : 'NIK wajib diisi.',
+                validator: (v) => v != null && RegExp(r'^\d{16}$').hasMatch(v)
+                    ? null
+                    : 'NIK harus tepat 16 digit angka.',
               ),
               _textFormField(
                 controller: _phone,
@@ -191,14 +210,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 errorText: _fieldError('phone'),
+                validator: (v) =>
+                    v != null && v.trim().isNotEmpty ? null : 'Nomor HP wajib diisi.',
               ),
               _textFormField(
                 controller: _birthDate,
-                label: 'Tanggal Lahir',
+                label: 'Tanggal Lahir (usia minimal 18 tahun)',
                 hint: 'Pilih tanggal',
                 icon: Icons.calendar_today_outlined,
                 readOnly: true,
                 onTap: _pickBirthDate,
+                validator: (v) =>
+                    v != null && v.isNotEmpty ? null : 'Tanggal lahir wajib diisi.',
               ),
               _textFormField(
                 controller: _occupation,
@@ -216,6 +239,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 maxLines: 3,
                 textCapitalization: TextCapitalization.sentences,
                 errorText: _fieldError('address'),
+              ),
+
+              _sectionTitle('Penanggung Jawab'),
+              _textFormField(
+                controller: _guardianName,
+                label: 'Nama Penanggung Jawab (opsional)',
+                hint: 'Nama orang tua / wali',
+                icon: Icons.family_restroom,
+                textCapitalization: TextCapitalization.words,
+                errorText: _fieldError('guardian_name'),
+              ),
+              _textFormField(
+                controller: _guardianPhone,
+                label: 'No. HP Penanggung Jawab',
+                hint: '+628123456789 — untuk komunikasi cepat',
+                icon: Icons.phone_in_talk_outlined,
+                keyboardType: TextInputType.phone,
+                errorText: _fieldError('guardian_phone'),
+                validator: (v) => v != null && v.trim().isNotEmpty
+                    ? null
+                    : 'Nomor HP penanggung jawab wajib diisi.',
               ),
 
               if (_error != null) ...[
@@ -239,6 +283,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       )
                     : const Text('Daftar Sekarang'),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Setelah mendaftar, akun Anda harus disetujui admin\nsebelum dapat digunakan untuk login.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                  height: 1.6,
+                ),
               ),
               const SizedBox(height: 28),
             ],

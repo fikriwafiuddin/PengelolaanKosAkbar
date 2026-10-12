@@ -36,6 +36,17 @@ Map<String, dynamic> _userJson({bool withRoom = false}) => {
 http.Client _mockApi() => MockClient((request) async {
       final path = request.url.path;
 
+      if (path == '/api/v1/auth/register' && request.method == 'POST') {
+        return http.Response(
+          jsonEncode({
+            'message':
+                'Registrasi berhasil. Akun Anda menunggu validasi admin.',
+            'data': {'user': _userJson()},
+          }),
+          201,
+        );
+      }
+
       if (path == '/api/v1/auth/login' && request.method == 'POST') {
         return http.Response(
           jsonEncode({
@@ -78,12 +89,23 @@ http.Client _mockApi() => MockClient((request) async {
         );
       }
 
+      if (path == '/api/v1/auth/profile' && request.method == 'PUT') {
+        return http.Response(
+          jsonEncode({
+            'message': 'Profil berhasil diperbarui.',
+            'data': _userJson(withRoom: true),
+          }),
+          200,
+        );
+      }
+
       return http.Response(jsonEncode({'message': 'not found'}), 404);
     });
 
 void main() {
   // Plugin storage perlu mock agar bisa berjalan di lingkungan test.
-  setUpAll(() {
+  // Reset per-test supaya token yang tersimpan test sebelumnya tidak bocor.
+  setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
 
@@ -123,5 +145,54 @@ void main() {
     expect(find.text('Beranda'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets(
+      'Registrasi sukses -> halaman menunggu validasi (tanpa login otomatis)',
+      (tester) async {
+    // Formulir registrasi panjang — perbesar viewport agar semua
+    // field terbangun (ListView membangun anak secara malas).
+    tester.view.physicalSize = const Size(800, 2800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      KostAkbarMobile(apiClient: ApiClient(client: _mockApi())),
+    );
+    await tester.pumpAndSettle();
+
+    // Buka halaman registrasi dari tautan login (pastikan terlihat dulu).
+    final registerLink = find.text('Daftar di sini');
+    await tester.ensureVisible(registerLink);
+    await tester.pumpAndSettle();
+    await tester.tap(registerLink);
+    await tester.pumpAndSettle();
+
+    // Isi formulir registrasi (urutan field mengikuti layar;
+    // tanggal lahir index 6 diisi lewat dialog date picker).
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'cahyo@contoh.com');
+    await tester.enterText(fields.at(1), 'rahasia123');
+    await tester.enterText(fields.at(2), 'rahasia123');
+    await tester.enterText(fields.at(3), 'Cahyo Nugroho');
+    await tester.enterText(fields.at(4), '3573123456780001');
+    await tester.enterText(fields.at(5), '+6289911122233');
+
+    await tester.tap(fields.at(6)); // tanggal lahir -> date picker
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK')); // terima tanggal awal (usia >= 18)
+    await tester.pumpAndSettle();
+
+    await tester.enterText(fields.at(7), 'Mahasiswa');
+    await tester.enterText(fields.at(8), 'Kediri');
+    await tester.enterText(fields.at(9), 'Bapak Cahyo');
+    await tester.enterText(fields.at(10), '+6281355550000');
+
+    await tester.tap(find.text('Daftar Sekarang'));
+    await tester.pumpAndSettle();
+
+    // Harus tiba di halaman menunggu validasi — bukan Beranda.
+    expect(find.text('Registrasi Berhasil!'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
   });
 }
