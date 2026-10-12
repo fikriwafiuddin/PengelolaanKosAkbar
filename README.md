@@ -43,7 +43,9 @@ Struktur kode backend memakai pemisahan **Controller → Service → Model**: co
    composer install
    cp .env.example .env          # lalu sesuaikan DB (default Laragon: root tanpa password)
    php artisan key:generate
+   python scripts/generate_room_images.py   # foto placeholder 29 kamar (sekali saja)
    php artisan migrate:fresh --seed
+   php artisan storage:link      # symlink penyajian foto kamar
    php artisan serve             # http://localhost:8000
    ```
 
@@ -68,6 +70,7 @@ Struktur kode backend memakai pemisahan **Controller → Service → Model**: co
 |---|---|---|---|
 | Admin (Ririn Yudarina) | `admin@kostakbar.id` | `password` | Web `/login` |
 | Penghuni (Dimas Pratama) | `dimaspratama@kostakbar.id` | `password` | Mobile |
+| Calon penghuni — menunggu validasi | `pending@kostakbar.id` | `password` | (login ditolak sampai disetujui) |
 
 Data demo mengikuti angka pada desain UI: **29 kamar** (Lantai 1-AC ×9 @Rp 600rb, Lantai 2-Reguler ×10 @Rp 500rb, Lantai 3-Reguler ×10 @Rp 450rb), **20 terisi / 9 kosong**, **20 penghuni aktif** dengan status pembayaran Oktober 2026: 16 lunas, 1 menunggu verifikasi, 3 belum bayar.
 
@@ -75,13 +78,16 @@ Data demo mengikuti angka pada desain UI: **29 kamar** (Lantai 1-AC ×9 @Rp 600r
 
 | Method | Path | Auth | Fungsi |
 |---|---|---|---|
-| POST | `/auth/register` | publik | registrasi calon penghuni (akun + identitas) |
-| POST | `/auth/login` | publik | login, terbitkan token |
+| POST | `/auth/register` | publik | registrasi calon penghuni — NIK 16 digit, usia ≥ 18, penanggung jawab wajib; akun berstatus `menunggu_validasi` (tanpa token) |
+| POST | `/auth/login` | publik | login, terbitkan token (ditolak selama menunggu validasi/ditolak) |
 | POST | `/auth/logout` | token | cabut token device |
 | GET | `/auth/me` | token | profil + identitas + kamar disewa |
-| GET | `/rooms?q=&type=&status=&max_price=` | publik | katalog + pencarian |
-| GET | `/rooms/{id}` | publik | detail kamar |
+| PUT | `/auth/profile` | token | ubah profil penghuni (email & NIK tetap) |
+| GET | `/rooms?q=&type=&status=&max_price=&sort=` | publik | katalog + pencarian; `sort=asc\|desc` urut nomor kamar numerik |
+| GET | `/rooms/{id}` | publik | detail kamar (termasuk `image_url` relatif) |
 | GET | `/facilities` | publik | daftar fasilitas |
+
+Admin web: `PUT /residents/{user}/validation` (Terima/Tolak akun baru) dari halaman **Data Penghuni**.
 
 ## Sprint 1 (28 Sep – 10 Okt 2026) ✅
 
@@ -94,6 +100,15 @@ Data demo mengikuti angka pada desain UI: **29 kamar** (Lantai 1-AC ×9 @Rp 600r
 - [x] Admin mencetak katalog kamar (web, `/rooms/print`)
 
 Menu **Verifikasi Pembayaran** (Sprint 2), **Chat & Pengumuman** (Sprint 3), dan **Laporan Keuangan** (Sprint 4) sudah tampil di sidebar web & bottom nav mobile sebagai penanda sprint berikutnya.
+
+### Revisi Sprint 1 (branch `sprint1rev`)
+
+- [x] **Alur persetujuan registrasi** — pendaftar baru berstatus *menunggu validasi*, tidak dapat login; mobile menampilkan halaman menunggu; admin menyetujui/menolak dari halaman Data Penghuni
+- [x] **Validasi registrasi** — NIK tepat 16 digit, usia minimal 18 tahun, kontak penanggung jawab wajib (semua pesan bahasa Indonesia)
+- [x] **Manajemen profil** — penghuni dapat mengubah profil (email & NIK terkunci)
+- [x] **Data Penghuni fokus biodata** — kolom identitas + penanggung jawab + status akun (data pembayaran dipisah ke sprint sewa)
+- [x] **Urutan kamar numerik** — 1, 2, …, 29 (bukan urutan teks) + kontrol arah urut di web
+- [x] **Foto kamar** — unggah/ganti/hapus oleh admin (jpg/png/webp ≤ 2 MB), tampil di web & mobile, placeholder 29 kamar via `scripts/generate_room_images.py`
 
 ## Pengujian
 
