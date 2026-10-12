@@ -29,6 +29,8 @@ class StoreRoomRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:1000'],
             'facility_ids' => ['nullable', 'array'],
             'facility_ids.*' => ['integer', 'exists:facilities,id'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_image' => ['nullable', 'boolean'],
         ];
     }
 
@@ -45,6 +47,9 @@ class StoreRoomRequest extends FormRequest
             'price_monthly.numeric' => 'Harga harus berupa angka.',
             'status.required' => 'Status kamar wajib dipilih.',
             'status.in' => 'Status kamar tidak valid.',
+            'image.image' => 'File harus berupa gambar.',
+            'image.mimes' => 'Gambar harus berformat jpg, jpeg, png, atau webp.',
+            'image.max' => 'Ukuran gambar maksimal 2 MB.',
         ];
     }
 }

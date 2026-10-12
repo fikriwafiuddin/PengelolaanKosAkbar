@@ -14,8 +14,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * CRUD data kamar + cetak katalog di dashboard admin.
- * Controller tipis — logika ada di RoomService.
+ * CRUD data kamar (termasuk foto kamar) + cetak katalog di dashboard
+ * admin. Controller tipis — logika ada di RoomService.
  */
 class RoomController extends Controller
 {
@@ -23,11 +23,11 @@ class RoomController extends Controller
     {}
 
     /**
-     * GET /rooms — halaman Data Kamar (tabel + filter).
+     * GET /rooms — halaman Data Kamar (tabel + filter + urut).
      */
     public function index(Request $request): Response
     {
-        $filters = $request->only(['q', 'type', 'status']);
+        $filters = $request->only(['q', 'type', 'status', 'sort']);
 
         return Inertia::render('rooms/index', [
             'rooms' => $this->rooms->list($filters, perPage: 15),
@@ -39,20 +39,21 @@ class RoomController extends Controller
     }
 
     /**
-     * POST /rooms — simpan kamar baru.
+     * POST /rooms — simpan kamar baru (beserta foto bila diunggah).
      */
     public function store(StoreRoomRequest $request): RedirectResponse
     {
         $this->rooms->create(
             $request->only(['room_number', 'type', 'price_monthly', 'status', 'description']),
             $request->validated('facility_ids', []),
+            $request->file('image'),
         );
 
         return back()->with('success', 'Kamar '.$request->validated('room_number').' berhasil ditambahkan.');
     }
 
     /**
-     * PUT /rooms/{room} — perbarui data kamar.
+     * PUT /rooms/{room} — perbarui data kamar (termasuk ganti/hapus foto).
      */
     public function update(StoreRoomRequest $request, Room $room): RedirectResponse
     {
@@ -60,6 +61,8 @@ class RoomController extends Controller
             $room,
             $request->only(['room_number', 'type', 'price_monthly', 'status', 'description']),
             $request->validated('facility_ids', []),
+            $request->file('image'),
+            $request->boolean('remove_image'),
         );
 
         return back()->with('success', 'Kamar '.$request->validated('room_number').' berhasil diperbarui.');
@@ -83,14 +86,8 @@ class RoomController extends Controller
      */
     public function print(): Response
     {
-        $rooms = Room::query()
-            ->with('facilities')
-            ->orderBy('type')
-            ->orderBy('room_number')
-            ->get();
-
         return Inertia::render('rooms/print', [
-            'rooms' => RoomResource::collection($rooms)->resolve(),
+            'rooms' => RoomResource::collection($this->rooms->catalog())->resolve(),
             'printed_at' => now()->translatedFormat('d F Y'),
         ]);
     }

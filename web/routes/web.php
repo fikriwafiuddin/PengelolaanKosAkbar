@@ -22,8 +22,11 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('rooms/print', [RoomController::class, 'print'])->name('rooms.print');
     Route::resource('rooms', RoomController::class)->except(['create', 'edit', 'show']);
 
-    // Data penghuni: direktori (read-only pada Sprint 1)
+    // Data penghuni: direktori biodata + validasi akun baru
     Route::get('residents', [ResidentController::class, 'index'])->name('residents.index');
+    Route::put('residents/{user}/validation', [ResidentController::class, 'updateStatus'])
+        ->whereNumber('user')
+        ->name('residents.validation.update');
 });
 
 require __DIR__.'/settings.php';

@@ -25,7 +25,7 @@ class RoomController extends Controller
     public function index(Request $request)
     {
         $rooms = $this->rooms->list(
-            $request->only(['q', 'type', 'status', 'max_price']),
+            $request->only(['q', 'type', 'status', 'max_price', 'sort']),
             (int) $request->query('per_page', '12'),
         );
 

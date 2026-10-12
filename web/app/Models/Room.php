@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -18,20 +19,42 @@ use Illuminate\Support\Carbon;
  * @property float $price_monthly
  * @property string $status kosong|terisi|terbooking
  * @property string|null $description
+ * @property string|null $image_path
+ * @property string|null $image_url
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['room_number', 'type', 'price_monthly', 'status', 'description'])]
+#[Fillable(['room_number', 'type', 'price_monthly', 'status', 'description', 'image_path'])]
 class Room extends Model
 {
     /** @use HasFactory<\Database\Factories\RoomFactory> */
     use HasFactory;
+
+    /**
+     * Aksesor image_url ikut diserialisasi (dipakai props Inertia
+     * halaman Data Kamar & thumbnail).
+     *
+     * @var string[]
+     */
+    protected $appends = ['image_url'];
 
     protected function casts(): array
     {
         return [
             'price_monthly' => 'decimal:2',
         ];
+    }
+
+    /**
+     * URL publik foto kamar secara RELATIF (/storage/rooms/xxx.png)
+     * agar klien web & mobile tinggal menggabungkan dengan host
+     * masing-masing; null bila kamar belum berfoto.
+     */
+    protected function imageUrl(): Attribute
+    {
+        return Attribute::get(
+            fn () => $this->image_path ? '/storage/'.$this->image_path : null,
+        );
     }
 
     /**

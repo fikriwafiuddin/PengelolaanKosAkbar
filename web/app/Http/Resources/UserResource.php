@@ -20,6 +20,8 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'role' => $this->role,
+            'status' => $this->status,
+            'status_label' => $this->statusLabel(),
             'phone' => $this->phone,
             'resident' => new ResidentResource($this->whenLoaded('resident')),
         ];

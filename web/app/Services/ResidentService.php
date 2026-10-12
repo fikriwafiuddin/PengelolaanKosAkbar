@@ -3,57 +3,26 @@
 namespace App\Services;
 
 use App\Models\Resident;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Logika bisnis data penghuni: direktori penghuni beserta status
- * pembayaran sewa bulan berjalan.
+ * Logika bisnis data penghuni: direktori biodata penghuni,
+ * status akun (validasi admin), serta status pembayaran sewa
+ * (dipakai ringkasan dashboard).
  */
 class ResidentService
 {
     /**
-     * Direktori penghuni dengan pencarian & filter.
+     * Direktori penghuni (biodata) dengan pencarian & filter.
      *
      * Filter yang didukung:
-     * - q            : nama, email, nomor kamar
-     * - status       : lunas|menunggu_verifikasi|belum_bayar
-     * - with_room    : 1 = hanya penghuni yang sedang menyewa
+     * - q      : nama, NIK, atau nomor kamar
+     * - status : status akun (aktif|menunggu_validasi|ditolak)
      */
     public function list(array $filters = [], int $perPage = 10): LengthAwarePaginator
     {
-        // $query = Resident::query()
-        //     ->with(['user', 'activeBooking.room', 'activeBooking.invoices.payments'])
-        //     ->when($filters['q'] ?? null, function (Builder $query, string $q) {
-        //         $query->where(function (Builder $inner) use ($q) {
-        //             $inner->where('full_name', 'like', "%{$q}%")
-        //                 ->orWhereHas('user', fn (Builder $u) => $u->where('email', 'like', "%{$q}%"))
-        //                 ->orWhereHas('activeBooking.room', fn (Builder $r) => $r->where('room_number', 'like', "%{$q}%"));
-        //         });
-        //     })
-        //     ->when(($filters['with_room'] ?? null) === '1', fn (Builder $query) => $query->whereHas('activeBooking'))
-        //     ->orderBy('full_name');
-
-        // Status pembayaran bukan kolom, melainkan diturunkan dari tagihan
-        // bulan berjalan — karena itu difilter lewat daftar id penghuni yang
-        // statusnya cocok (agar paginasi tetap akurat).
-        // if ($statusFilter = $filters['status'] ?? null) {
-        //     $matchingIds = (clone $query)->get()
-        //         ->filter(fn (Resident $resident) => $this->paymentStatus($resident) === $statusFilter)
-        //         ->pluck('id');
-
-        //     $query->whereIn('id', $matchingIds);
-        // }
-
-        // $residents = $query->paginate($perPage)->withQueryString();
-
-        // $residents->getCollection()->transform(function (Resident $resident) {
-        //     $resident->payment_status = $this->paymentStatus($resident);
-
-        //     return $resident;
-        // });
-
-        // return $residents;
         return Resident::query()
             ->with(['user', 'activeBooking.room'])
             ->when($filters['q'] ?? null, function (Builder $query, string $q) {
@@ -63,9 +32,28 @@ class ResidentService
                         ->orWhereHas('activeBooking.room', fn (Builder $r) => $r->where('room_number', 'like', "%{$q}%"));
                 });
             })
+            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->whereHas(
+                'user',
+                fn (Builder $u) => $u->where('status', $status),
+            ))
             ->orderBy('full_name')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Aksi admin menvalidasi akun penghuni: setujui (aktif) atau tolak.
+     *
+     * Saat ditolak, seluruh token device akun tersebut dicabut agar
+     * sesi yang sudah berjalan ikut berakhir.
+     */
+    public function validateAccount(User $user, string $status): void
+    {
+        $user->update(['status' => $status]);
+
+        if ($status === User::STATUS_REJECTED) {
+            $user->tokens()->delete();
+        }
     }
 
     /**
@@ -97,7 +85,7 @@ class ResidentService
     }
 
     /**
-     * Statistik penghuni untuk kartu ringkasan halaman Data Penghuni.
+     * Statistik penghuni untuk kartu ringkasan dashboard admin.
      */
     public function stats(): array
     {

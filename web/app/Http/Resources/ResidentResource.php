@@ -22,6 +22,8 @@ class ResidentResource extends JsonResource
             'birth_date' => $this->birth_date?->format('Y-m-d'),
             'address' => $this->address,
             'occupation' => $this->occupation,
+            'guardian_name' => $this->guardian_name,
+            'guardian_phone' => $this->guardian_phone,
             'room' => $this->whenLoaded('activeBooking', fn () => [
                 'room_number' => $this->activeBooking?->room?->room_number,
                 'type' => $this->activeBooking?->room?->type,

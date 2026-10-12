@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\ProfileUpdateRequest;
 use App\Http\Requests\Api\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
@@ -11,8 +12,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Autentikasi aplikasi mobile: registrasi, login, logout, profil.
- * Controller tipis — logika ada di AuthService.
+ * Autentikasi aplikasi mobile: registrasi, login, logout, profil,
+ * dan pembaruan profil. Controller tipis — logika ada di AuthService.
  */
 class AuthController extends Controller
 {
@@ -21,16 +22,18 @@ class AuthController extends Controller
 
     /**
      * POST /api/v1/auth/register — registrasi calon penghuni.
+     *
+     * Akun berstatus menunggu_validasi dan belum dapat login
+     * sampai disetujui admin (tidak ada token yang diterbitkan).
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        $result = $this->auth->register($request->validated());
+        $user = $this->auth->register($request->validated());
 
         return response()->json([
-            'message' => 'Registrasi berhasil. Silakan masuk dengan akun Anda.',
+            'message' => 'Registrasi berhasil. Akun Anda menunggu validasi admin sebelum dapat digunakan untuk login.',
             'data' => [
-                'user' => new UserResource($result['user']),
-                'token' => $result['token'],
+                'user' => new UserResource($user),
             ],
         ], 201);
     }
@@ -72,5 +75,18 @@ class AuthController extends Controller
         $user = $this->auth->profile($request->user());
 
         return response()->json(['data' => new UserResource($user)]);
+    }
+
+    /**
+     * PUT /api/v1/auth/profile — perbarui profil penghuni.
+     */
+    public function updateProfile(ProfileUpdateRequest $request): JsonResponse
+    {
+        $user = $this->auth->updateProfile($request->user(), $request->validated());
+
+        return response()->json([
+            'message' => 'Profil berhasil diperbarui.',
+            'data' => new UserResource($user),
+        ]);
     }
 }

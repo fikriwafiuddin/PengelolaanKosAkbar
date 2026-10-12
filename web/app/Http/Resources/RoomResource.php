@@ -24,6 +24,9 @@ class RoomResource extends JsonResource
             'status' => $this->status,
             'status_label' => $this->statusLabel(),
             'description' => $this->description,
+            // URL relatif (/storage/rooms/xxx.png); klien mobile tinggal
+            // menggabungkan dengan base URL API-nya.
+            'image_url' => $this->when($this->image_path, $this->image_url),
             'facilities' => FacilityResource::collection($this->whenLoaded('facilities')),
         ];
     }

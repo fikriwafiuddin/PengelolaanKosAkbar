@@ -32,5 +32,6 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
         Route::get('auth/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
+        Route::put('auth/profile', [AuthController::class, 'updateProfile'])->name('api.v1.auth.profile.update');
     });
 });
