@@ -41,7 +41,7 @@ class ResidentSeeder extends Seeder
     {
         $occupiedRooms = Room::query()
             ->where('status', 'terisi')
-            ->orderBy('room_number')
+            ->orderByRaw('CAST(room_number AS SIGNED)')
             ->get();
 
         $receiptCounter = 1;
@@ -57,6 +57,8 @@ class ResidentSeeder extends Seeder
             // tagihan bulan berjalan mengikuti skenario status.
             $receiptCounter = $this->createInvoiceHistory($booking, $room, $index, $receiptCounter);
         }
+
+        $this->createPendingRegistrant();
     }
 
     /**
@@ -74,6 +76,7 @@ class ResidentSeeder extends Seeder
                 'name' => $fullName,
                 'password' => Hash::make('password'),
                 'role' => 'penghuni',
+                'status' => User::STATUS_ACTIVE,
                 'phone' => '+62812'.str_pad((string) (3000000000 + $index * 137), 10, '0', STR_PAD_LEFT),
                 'email_verified_at' => now(),
             ],
@@ -83,14 +86,49 @@ class ResidentSeeder extends Seeder
             ['user_id' => $user->id],
             [
                 'full_name' => $fullName,
-                'identity_number' => '35'.str_pad((string) (7300000000000000 + $index * 4241), 14, '0', STR_PAD_LEFT),
+                // NIK 16 digit (2 prefix + 14 digit unik).
+                'identity_number' => '35'.str_pad((string) (73000000000000 + $index * 4241), 14, '0', STR_PAD_LEFT),
                 'birth_date' => now()->subYears(20 + $index % 8)->subMonths($index % 12)->startOfMonth(),
                 'address' => 'Kota Kediri, Jawa Timur',
                 'occupation' => $index % 3 === 0 ? 'Mahasiswa' : ($index % 3 === 1 ? 'Karyawan' : 'Wirausaha'),
+                'guardian_name' => 'Bapak '.explode(' ', $fullName)[0],
+                'guardian_phone' => '+62813'.str_pad((string) (5000000000 + $index * 271), 9, '0', STR_PAD_LEFT),
             ],
         );
 
         return [$user, $resident];
+    }
+
+    /**
+     * Satu akun calon penghuni yang masih menunggu validasi admin —
+     * fixture untuk menguji alur persetujuan registrasi.
+     */
+    private function createPendingRegistrant(): void
+    {
+        $user = User::query()->updateOrCreate(
+            ['email' => 'pending@kostakbar.id'],
+            [
+                'name' => 'Cahyo Nugroho',
+                'password' => Hash::make('password'),
+                'role' => 'penghuni',
+                'status' => User::STATUS_PENDING,
+                'phone' => '+6289912345678',
+                'email_verified_at' => now(),
+            ],
+        );
+
+        Resident::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'full_name' => 'Cahyo Nugroho',
+                'identity_number' => '35'.str_pad((string) 73119987654321, 14, '0', STR_PAD_LEFT),
+                'birth_date' => now()->subYears(23)->startOfYear(),
+                'address' => 'Jl. Mastrip No.130, Sukorame, Kota Kediri',
+                'occupation' => 'Mahasiswa',
+                'guardian_name' => 'Bapak Sutrisno',
+                'guardian_phone' => '+6281355550000',
+            ],
+        );
     }
 
     /**

@@ -19,6 +19,7 @@ class AdminUserSeeder extends Seeder
                 'name' => 'Ririn Yudarina',
                 'password' => Hash::make('password'),
                 'role' => 'admin',
+                'status' => User::STATUS_ACTIVE,
                 'phone' => '+6281234567890',
                 'email_verified_at' => now(),
             ],

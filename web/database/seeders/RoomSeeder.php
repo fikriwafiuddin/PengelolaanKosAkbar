@@ -48,6 +48,7 @@ class RoomSeeder extends Seeder
                         'price_monthly' => $price,
                         'status' => 'kosong',
                         'description' => "Kamar {$type} ukuran 3x4 m, kapasitas 1 orang.",
+                        'image_path' => "rooms/room-{$number}.png",
                     ],
                 );
 
