@@ -19,10 +19,12 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $birth_date
  * @property string|null $address
  * @property string|null $occupation
+ * @property string|null $guardian_name
+ * @property string|null $guardian_phone
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'full_name', 'identity_number', 'birth_date', 'address', 'occupation'])]
+#[Fillable(['user_id', 'full_name', 'identity_number', 'birth_date', 'address', 'occupation', 'guardian_name', 'guardian_phone'])]
 class Resident extends Model
 {
     /** @use HasFactory<\Database\Factories\ResidentFactory> */

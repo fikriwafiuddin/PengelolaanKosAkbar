@@ -24,6 +24,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string $role
+ * @property string $status
  * @property string|null $phone
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -32,12 +33,21 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'role', 'phone'])]
+#[Fillable(['name', 'email', 'password', 'role', 'status', 'phone'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    /** Registrasi baru — menunggu validasi admin. */
+    public const STATUS_PENDING = 'menunggu_validasi';
+
+    /** Akun tervalidasi — boleh login. */
+    public const STATUS_ACTIVE = 'aktif';
+
+    /** Registrasi ditolak admin. */
+    public const STATUS_REJECTED = 'ditolak';
 
     /**
      * Cek apakah user adalah admin (pengelola kos).
@@ -45,6 +55,35 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    /**
+     * Cek apakah akun sudah tervalidasi dan boleh login.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Cek apakah akun masih menunggu validasi admin.
+     */
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Label status akun dalam bahasa Indonesia untuk ditampilkan di UI.
+     */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_ACTIVE => 'Aktif',
+            self::STATUS_PENDING => 'Menunggu Validasi',
+            self::STATUS_REJECTED => 'Ditolak',
+            default => $this->status,
+        };
     }
 
     /**
