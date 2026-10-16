@@ -15,17 +15,16 @@ void main() {
 
 /// Entry point: memasang ApiClient + AuthProvider secara global.
 class KostAkbarMobile extends StatelessWidget {
-  const KostAkbarMobile({super.key, ApiClient? apiClient})
-      : _apiClient = apiClient;
+  const KostAkbarMobile({super.key, this.apiClient});
 
   /// Klien API injeksi (untuk pengujian); null = klien HTTP sungguhan.
-  final ApiClient? _apiClient;
+  final ApiClient? apiClient;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<ApiClient>(create: (_) => _apiClient ?? ApiClient()),
+        Provider<ApiClient>(create: (_) => apiClient ?? ApiClient()),
         ChangeNotifierProvider(
           create: (context) => AuthProvider(context.read<ApiClient>()),
         ),
