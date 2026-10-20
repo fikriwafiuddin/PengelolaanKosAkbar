@@ -96,6 +96,31 @@ class ApiClient {
     );
   }
 
+  /// POST multipart (dipakai unggah bukti pembayaran berupa gambar).
+  ///
+  /// [fields] — field teks biasa; [fileField]/[filePath] — lampiran
+  /// berkas (path hasil image_picker).
+  Future<dynamic> postMultipart(
+    String path, {
+    Map<String, String> fields = const {},
+    String? fileField,
+    String? filePath,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(_headers)
+      ..fields.addAll(fields);
+
+    if (fileField != null && filePath != null) {
+      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+    }
+
+    return _send(() async {
+      final streamed = await request.send().timeout(ApiConfig.timeout);
+      return http.Response.fromStream(streamed);
+    });
+  }
+
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     late http.Response response;
 
@@ -111,6 +136,8 @@ class ApiClient {
 
     return _decode(response);
   }
+
+
 
   dynamic _decode(http.Response response) {
     dynamic json;

@@ -7,6 +7,7 @@ import '../../data/api_client.dart';
 import '../../data/models/room.dart';
 import '../../data/services/room_service.dart';
 import '../../theme/app_theme.dart';
+import '../booking/booking_form_screen.dart';
 
 /// Detail kamar: informasi lengkap, fasilitas, harga, dan status
 /// (aktivitas "Lihat detail data kamar yang dipilih" pada Sprint 1).
@@ -264,11 +265,35 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                       ],
 
                       const SizedBox(height: 20),
-                      Text(
-                        'Fitur pemesanan kamar akan tersedia pada Sprint 2.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                      ),
+
+                      // Aksi pemesanan (Sprint 2) — hanya untuk kamar kosong
+                      if (room.status == RoomStatus.kosong)
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.terracotta,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            onPressed: () =>
+                                Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) =>
+                                  BookingFormScreen(room: room),
+                            )),
+                            icon: const Icon(Icons.event_available_rounded),
+                            label: const Text(
+                              'Pesan Kamar',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        )
+                      else
+                        Text(
+                          'Kamar ini sedang tidak tersedia untuk dipesan.',
+                          textAlign: TextAlign.center,
+                          style:
+                              const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
                       const SizedBox(height: 20),
                     ],
                   ),

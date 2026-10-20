@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'billing/invoices_screen.dart';
 import 'coming_soon_screen.dart';
 import 'home/home_screen.dart';
 import 'profile/profile_screen.dart';
@@ -21,11 +22,7 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final pages = [
       const HomeScreen(),
-      const ComingSoonScreen(
-        title: 'Tagihan',
-        description: 'Rincian tagihan, pembayaran sewa, dan kuitansi akan tersedia pada Sprint 2.',
-        icon: Icons.receipt_long_outlined,
-      ),
+      const InvoicesScreen(),
       const ComingSoonScreen(
         title: 'Chat',
         description: 'Pesan grup dan pengumuman resmi akan tersedia pada Sprint 3.',
