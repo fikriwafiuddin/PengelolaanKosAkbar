@@ -3,10 +3,11 @@ import { BedDouble, LayoutGrid, MessageSquareText, ReceiptText, Users, Wallet } 
 import { dashboard } from '@/routes';
 import * as roomsRoutes from '@/routes/rooms';
 import * as residentsRoutes from '@/routes/residents';
+import * as paymentsRoutes from '@/routes/payments';
 import type { NavItem } from '@/types';
 
 /**
- * Navigasi utama dashboard admin Kost Akbar (Sprint 1).
+ * Navigasi utama dashboard admin Kost Akbar (Sprint 1–2).
  */
 export const mainNavItems: NavItem[] = [
     {
@@ -24,6 +25,11 @@ export const mainNavItems: NavItem[] = [
         href: residentsRoutes.index(),
         icon: Users,
     },
+    {
+        title: 'Verifikasi Pembayaran',
+        href: paymentsRoutes.index(),
+        icon: ReceiptText,
+    },
 ];
 
 /**
@@ -31,12 +37,6 @@ export const mainNavItems: NavItem[] = [
  * (nonaktif) agar struktur menu sesuai desain UI.
  */
 export const upcomingNavItems: (NavItem & { sprint: string })[] = [
-    {
-        title: 'Verifikasi Pembayaran',
-        href: '#',
-        icon: ReceiptText,
-        sprint: 'Sprint 2',
-    },
     {
         title: 'Chat & Pengumuman',
         href: '#',

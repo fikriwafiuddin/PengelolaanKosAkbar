@@ -77,6 +77,43 @@ export type ResidentStats = {
     belum_bayar: number;
 };
 
+export type PaymentStatus = 'pending' | 'terverifikasi' | 'ditolak';
+
+/**
+ * Ringkasan tagihan yang terlampir pada data pembayaran.
+ */
+export type PaymentInvoice = {
+    id: number;
+    period: string;
+    period_label: string;
+    amount: number;
+    amount_formatted: string;
+    status: string;
+    status_label: string;
+    due_date_formatted: string;
+};
+
+export type Payment = {
+    id: number;
+    invoice_id: number;
+    amount: number;
+    amount_formatted: string;
+    method: 'transfer' | 'tunai';
+    method_label: string;
+    proof_url: string | null;
+    receipt_no: string | null;
+    status: PaymentStatus;
+    status_label: string;
+    paid_at: string | null;
+    paid_at_formatted: string | null;
+    verified_at: string | null;
+    verified_at_formatted: string | null;
+    verifier_name?: string | null;
+    invoice?: PaymentInvoice | null;
+    resident_name?: string | null;
+    room_number?: string | null;
+};
+
 /**
  * Struktur paginasi standar Inertia/Laravel.
  */
