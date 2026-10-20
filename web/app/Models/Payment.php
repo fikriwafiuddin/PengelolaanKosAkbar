@@ -63,4 +63,29 @@ class Payment extends Model
     {
         return $this->belongsTo(User::class, 'verified_by');
     }
+
+    /**
+     * Label status dalam bahasa Indonesia untuk ditampilkan di UI.
+     */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            'pending' => 'Menunggu Verifikasi',
+            'terverifikasi' => 'Terverifikasi',
+            'ditolak' => 'Ditolak',
+            default => $this->status,
+        };
+    }
+
+    /**
+     * Label metode pembayaran dalam bahasa Indonesia.
+     */
+    public function methodLabel(): string
+    {
+        return match ($this->method) {
+            'transfer' => 'Transfer Bank',
+            'tunai' => 'Tunai',
+            default => $this->method,
+        };
+    }
 }

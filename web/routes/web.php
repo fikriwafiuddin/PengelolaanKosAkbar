@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\PaymentController;
 use App\Http\Controllers\Web\ResidentController;
 use App\Http\Controllers\Web\RoomController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,15 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::put('residents/{user}/validation', [ResidentController::class, 'updateStatus'])
         ->whereNumber('user')
         ->name('residents.validation.update');
+
+    // Verifikasi pembayaran sewa + cetak kuitansi (Sprint 2)
+    Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::get('payments/{payment}/receipt', [PaymentController::class, 'receipt'])
+        ->whereNumber('payment')
+        ->name('payments.receipt');
+    Route::put('payments/{payment}/verification', [PaymentController::class, 'update'])
+        ->whereNumber('payment')
+        ->name('payments.verification.update');
 });
 
 require __DIR__.'/settings.php';

@@ -50,4 +50,34 @@ class Invoice extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    /**
+     * Label status dalam bahasa Indonesia untuk ditampilkan di UI.
+     */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            'belum_bayar' => 'Belum Bayar',
+            'lunas' => 'Lunas',
+            default => $this->status,
+        };
+    }
+
+    /**
+     * Nama periode dalam bahasa Indonesia, mis. "Oktober 2026".
+     */
+    public function periodLabel(): string
+    {
+        return Carbon::parse($this->period.'-01')
+            ->locale('id')
+            ->translatedFormat('F Y');
+    }
+
+    /**
+     * Apakah tagihan sudah lewat jatuh tempo tapi belum dibayar.
+     */
+    public function isOverdue(): bool
+    {
+        return $this->status === 'belum_bayar' && $this->due_date->isPast();
+    }
 }

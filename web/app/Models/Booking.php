@@ -58,4 +58,18 @@ class Booking extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    /**
+     * Label status dalam bahasa Indonesia untuk ditampilkan di UI.
+     */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            'menunggu' => 'Menunggu Konfirmasi',
+            'aktif' => 'Aktif',
+            'selesai' => 'Selesai',
+            'batal' => 'Dibatalkan',
+            default => $this->status,
+        };
+    }
 }

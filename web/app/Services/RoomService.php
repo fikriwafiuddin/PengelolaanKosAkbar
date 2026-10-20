@@ -141,7 +141,7 @@ class RoomService
             ->exists();
 
         if ($hasActiveBooking) {
-            throw \Illuminate\Support\Facades\Validator::make([], [])->withErrors([
+            throw \Illuminate\Validation\ValidationException::withMessages([
                 'room' => 'Kamar tidak dapat dihapus karena masih memiliki penyewa aktif. Selesaikan atau batalkan pemesanan terlebih dahulu.',
             ]);
         }
