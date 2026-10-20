@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:kost_akbar/data/api_client.dart';
 import 'package:kost_akbar/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -99,10 +100,95 @@ http.Client _mockApi() => MockClient((request) async {
         );
       }
 
+      if (path == '/api/v1/invoices') {
+        return http.Response(
+          jsonEncode({
+            'data': [
+              {
+                'id': 54,
+                'booking_id': 17,
+                'period': '2026-10',
+                'period_label': 'Oktober 2026',
+                'amount': 450000,
+                'amount_formatted': 'Rp 450.000',
+                'due_date': '2026-10-25',
+                'due_date_formatted': '25 Oktober 2026',
+                'status': 'belum_bayar',
+                'status_label': 'Belum Bayar',
+                'is_overdue': false,
+                'room': {'id': 24, 'room_number': '24', 'type': 'Lantai 3 - Reguler'},
+                'payments': [],
+              },
+            ],
+            'summary': {
+              'total_count': 3,
+              'total_amount': 1350000,
+              'unpaid_count': 1,
+              'unpaid_amount': 450000,
+              'next_due_date': '2026-10-25T00:00:00.000000Z',
+            },
+          }),
+          200,
+        );
+      }
+
+      if (path == '/api/v1/invoices/54') {
+        return http.Response(
+          jsonEncode({
+            'data': {
+              'id': 54,
+              'booking_id': 17,
+              'period': '2026-10',
+              'period_label': 'Oktober 2026',
+              'amount': 450000,
+              'amount_formatted': 'Rp 450.000',
+              'due_date': '2026-10-25',
+              'due_date_formatted': '25 Oktober 2026',
+              'status': 'belum_bayar',
+              'status_label': 'Belum Bayar',
+              'is_overdue': false,
+              'room': {'id': 24, 'room_number': '24', 'type': 'Lantai 3 - Reguler'},
+              'payments': [],
+            },
+          }),
+          200,
+        );
+      }
+
+      if (path == '/api/v1/notifications') {
+        return http.Response(
+          jsonEncode({
+            'data': [
+              {
+                'id': 'notif-1',
+                'title': 'Pengingat jatuh tempo tagihan sewa',
+                'body':
+                    'Tagihan sewa Kamar 24 periode Oktober 2026 jatuh tempo pada 25 Oktober 2026.',
+                'invoice_id': 54,
+                'room_number': '24',
+                'read_at': null,
+                'created_at': '2026-10-20T08:00:00.000000Z',
+              },
+            ],
+            'unread_count': 1,
+          }),
+          200,
+        );
+      }
+
+      if (path == '/api/v1/notifications/mark-read' && request.method == 'POST') {
+        return http.Response(jsonEncode({'data': {'marked': 1}}), 200);
+      }
+
       return http.Response(jsonEncode({'message': 'not found'}), 404);
     });
 
 void main() {
+  // Simbol tanggal id_ID (panggilan main() tidak berjalan saat test).
+  setUpAll(() {
+    initializeDateFormatting('id_ID');
+  });
+
   // Plugin storage perlu mock agar bisa berjalan di lingkungan test.
   // Reset per-test supaya token yang tersimpan test sebelumnya tidak bocor.
   setUp(() {
@@ -194,5 +280,58 @@ void main() {
     // Harus tiba di halaman menunggu validasi — bukan Beranda.
     expect(find.text('Registrasi Berhasil!'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
+  });
+
+  testWidgets('Tagihan: ringkasan, rincian & validasi bayar (Sprint 2)',
+      (tester) async {
+    // Layar tagihan memuat ringkasan + daftar — perlu viewport tinggi.
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      KostAkbarMobile(apiClient: ApiClient(client: _mockApi())),
+    );
+    await tester.pumpAndSettle();
+
+    // Login dulu sebagai penghuni.
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'dimaspratama@kostakbar.id',
+    );
+    await tester.enterText(find.byType(TextFormField).last, 'password');
+    await tester.tap(find.text('Masuk Sekarang'));
+    await tester.pumpAndSettle();
+
+    // Pindah ke tab Tagihan (ikon receipt di bottom nav).
+    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.pumpAndSettle();
+
+    // Ringkasan total belum dibayar + baris tagihan.
+    expect(find.text('TOTAL TAGIHAN BELUM DIBAYAR'), findsOneWidget);
+    // Nominal muncul di kartu ringkasan dan di baris tagihan.
+    expect(find.text('Rp 450.000'), findsNWidgets(2));
+    expect(find.text('Kamar 24 · Oktober 2026'), findsOneWidget);
+    expect(find.text('1 tagihan menunggu dibayar'), findsOneWidget);
+
+    // Buka rincian tagihan.
+    await tester.tap(find.text('Kamar 24 · Oktober 2026'));
+    await tester.pumpAndSettle();
+    expect(find.text('RINCIAN TAGIHAN'), findsOneWidget);
+    expect(find.text('Bayar Sekarang'), findsOneWidget);
+
+    // Buka form pembayaran lalu kirim tanpa bukti (transfer) —
+    // harus ditolak validasi lokal sebelum memanggil API.
+    await tester.tap(find.text('Bayar Sekarang'));
+    await tester.pumpAndSettle();
+    expect(find.text('NOMINAL PEMBAYARAN'), findsOneWidget);
+    expect(find.text('Kirim Pembayaran'), findsOneWidget);
+
+    await tester.tap(find.text('Kirim Pembayaran'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Bukti transfer wajib diunggah untuk pembayaran transfer.'),
+      findsOneWidget,
+    );
   });
 }

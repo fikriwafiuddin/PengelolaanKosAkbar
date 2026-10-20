@@ -289,6 +289,96 @@ def main():
             check('API ubah profil validasi (nama kosong ditolak)',
                   status == 422 and 'full_name' in body.get('errors', {}))
 
+            # ==================================================
+            # C2. Sprint 2: pemesanan -> tagihan -> bayar ->
+            #     verifikasi admin -> kuitansi
+            # ==================================================
+            status, body = api('/api/v1/rooms?status=kosong')
+            free_room = body['data'][0]
+            check('API kamar kosong tersedia', len(body['data']) > 0,
+                  f"(kamar {free_room['room_number']})")
+
+            status, body = api('/api/v1/bookings', 'POST', {
+                'room_id': free_room['id'],
+                'start_date': '2026-11-01',
+                'duration_months': 3,
+            }, token=token)
+            booking = body.get('data', {})
+            check('API pesan kamar (3 bulan)', status == 201
+                  and len(booking.get('invoices', [])) == 3,
+                  f"(total {booking.get('total_amount_formatted')})")
+
+            status, body = api('/api/v1/bookings', 'POST', {
+                'room_id': free_room['id'],
+                'start_date': '2026-11-01',
+                'duration_months': 3,
+            }, token=token)
+            check('API pesan ganda ditolak', status == 422
+                  and 'pemesanan aktif' in json.dumps(body, ensure_ascii=False))
+
+            status, body = api('/api/v1/rooms?status=kosong')
+            still_free = any(r['id'] == free_room['id'] for r in body['data'])
+            check('kamar terisi setelah dipesan', not still_free)
+
+            status, body = api('/api/v1/invoices', token=token)
+            summary = body.get('summary', {})
+            check('API tagihan + ringkasan', status == 200
+                  and summary.get('unpaid_count') == 3,
+                  f"(belum bayar Rp {summary.get('unpaid_amount'):.0f})")
+
+            first_invoice = body['data'][0]
+            status, body = api(f"/api/v1/invoices/{first_invoice['id']}", token=token)
+            check('API detail tagihan', status == 200
+                  and body['data']['room']['room_number'] == free_room['room_number'])
+
+            # Validasi: transfer tanpa bukti ditolak.
+            status, body = api(f"/api/v1/invoices/{first_invoice['id']}/payments", 'POST', {
+                'amount': first_invoice['amount'], 'method': 'transfer',
+            }, token=token)
+            check('API bayar transfer tanpa bukti ditolak', status == 422
+                  and 'proof' in body.get('errors', {}))
+
+            # Bayar tunai (tanpa bukti) -> pending.
+            status, body = api(f"/api/v1/invoices/{first_invoice['id']}/payments", 'POST', {
+                'amount': first_invoice['amount'], 'method': 'tunai',
+            }, token=token)
+            payment = body.get('data', {})
+            check('API kirim pembayaran tunai', status == 201
+                  and payment.get('status') == 'pending')
+
+            status, body = api(f"/api/v1/invoices/{first_invoice['id']}/payments", 'POST', {
+                'amount': first_invoice['amount'], 'method': 'tunai',
+            }, token=token)
+            check('API kirim bayar kedua ditolak (masih pending)', status == 422
+                  and 'menunggu verifikasi' in json.dumps(body, ensure_ascii=False))
+
+            # ==================================================
+            # C3. Admin memverifikasi pembayaran + kuitansi
+            # ==================================================
+            inertia['X-XSRF-TOKEN'] = xsrf_token()
+            status, body, _ = fetch('/payments', headers=inertia)
+            page = json.loads(body)
+            rows = page['props']['payments']['data']
+            e2e_pay = next((p for p in rows if p.get('resident_name') == 'E2e Approve Baru'), None)
+            check('GET /payments (verifikasi) memuat bayaran baru', e2e_pay is not None,
+                  f"(pending: {page['props']['statusCounts'].get('pending')})")
+
+            if e2e_pay:
+                inertia['X-XSRF-TOKEN'] = xsrf_token()
+                status, _, _ = fetch(f"/payments/{e2e_pay['id']}/verification", headers=inertia,
+                                     method='PUT', data=json.dumps({'status': 'terverifikasi'}))
+                check('PUT verifikasi (terima)', status in (200, 302, 303), f'(status={status})')
+
+                status, body, _ = fetch(f"/payments/{e2e_pay['id']}/receipt", headers=inertia)
+                receipt = json.loads(body)['props']['payment']
+                check('GET kuitansi + nomor terbit', status == 200
+                      and bool(receipt.get('receipt_no')),
+                      f"({receipt.get('receipt_no')})")
+
+                status, body = api('/api/v1/invoices', token=token)
+                paid = [i for i in body['data'] if i['status'] == 'lunas']
+                check('tagihan lunas setelah verifikasi', len(paid) == 1)
+
             api('/api/v1/auth/logout', 'POST', token=token)
 
     # ==============================================================
