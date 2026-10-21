@@ -35,28 +35,30 @@ export function AppSidebar() {
             <SidebarContent>
                 <NavMain items={mainNavItems} />
 
-                {/* Menu sprint berikutnya — tampil sesuai desain, belum aktif */}
-                <SidebarGroup className="px-2 py-0">
-                    <SidebarGroupLabel>Segera Hadir</SidebarGroupLabel>
-                    <SidebarMenu>
-                        {upcomingNavItems.map((item) => (
-                            <SidebarMenuItem key={item.title}>
-                                <SidebarMenuButton
-                                    disabled
-                                    tooltip={{
-                                        children: `${item.title} — hadir pada ${item.sprint}`,
-                                    }}
-                                >
-                                    {item.icon && <item.icon />}
-                                    <span>{item.title}</span>
-                                    <span className="ml-auto text-[0.6rem] font-medium tracking-wide text-muted-foreground uppercase">
-                                        {item.sprint}
-                                    </span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
-                </SidebarGroup>
+                {/* Menu sprint berikutnya — hanya tampil bila masih ada */}
+                {upcomingNavItems.length > 0 && (
+                    <SidebarGroup className="px-2 py-0">
+                        <SidebarGroupLabel>Segera Hadir</SidebarGroupLabel>
+                        <SidebarMenu>
+                            {upcomingNavItems.map((item) => (
+                                <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuButton
+                                        disabled
+                                        tooltip={{
+                                            children: `${item.title} — hadir pada ${item.sprint}`,
+                                        }}
+                                    >
+                                        {item.icon && <item.icon />}
+                                        <span>{item.title}</span>
+                                        <span className="ml-auto text-[0.6rem] font-medium tracking-wide text-muted-foreground uppercase">
+                                            {item.sprint}
+                                        </span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroup>
+                )}
             </SidebarContent>
 
             <SidebarFooter>
