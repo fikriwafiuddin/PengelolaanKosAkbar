@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Web\ChatController;
 use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\FinanceController;
 use App\Http\Controllers\Web\PaymentController;
 use App\Http\Controllers\Web\ResidentController;
 use App\Http\Controllers\Web\RoomController;
@@ -45,6 +46,14 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::post('chat/rooms/{room}/messages', [ChatController::class, 'storeMessage'])
         ->whereNumber('room')
         ->name('chat.messages.store');
+
+    // Laporan keuangan: rekap kas, pengeluaran, laba + ekspor (Sprint 4)
+    Route::get('finance', [FinanceController::class, 'index'])->name('finance.index');
+    Route::get('finance/export', [FinanceController::class, 'export'])->name('finance.export');
+    Route::post('finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
+    Route::delete('finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])
+        ->whereNumber('expense')
+        ->name('finance.expenses.destroy');
 });
 
 require __DIR__.'/settings.php';

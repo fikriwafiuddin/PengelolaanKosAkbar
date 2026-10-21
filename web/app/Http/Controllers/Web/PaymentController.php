@@ -22,12 +22,12 @@ class PaymentController extends Controller
     {}
 
     /**
-     * GET /payments — halaman Verifikasi Pembayaran (daftar pembayaran
-     * menunggu verifikasi / riwayat verifikasi).
+     * GET /payments — halaman Verifikasi Pembayaran + riwayat transaksi
+     * (filter status, periode tagihan, dan pencarian).
      */
     public function index(Request $request): Response
     {
-        $filters = $request->only(['status', 'q']);
+        $filters = $request->only(['status', 'q', 'month']);
         $payments = $this->payments->list($filters);
 
         return Inertia::render('payments/index', [
@@ -39,6 +39,7 @@ class PaymentController extends Controller
             ],
             'filters' => $filters,
             'statusCounts' => $this->payments->statusCounts(),
+            'verifiedTotal' => $this->payments->verifiedTotal($filters),
         ]);
     }
 

@@ -60,16 +60,26 @@ class PaymentService
     }
 
     /**
-     * Daftar pembayaran untuk halaman Verifikasi Pembayaran admin.
+     * Daftar pembayaran untuk halaman Verifikasi Pembayaran admin
+     * sekaligus riwayat transaksi pembayaran penghuni.
      *
-     * Filter: status (pending|terverifikasi|ditolak) dan q (nomor kamar
-     * / nama penghuni). Default menampilkan yang menunggu verifikasi.
+     * Filter:
+     * - status : pending|terverifikasi|ditolak|semua (default pending)
+     * - month  : periode tagihan YYYY-MM (mis. 2026-10)
+     * - q      : nomor kamar / nama penghuni
      */
     public function list(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         return Payment::query()
             ->with(['invoice.booking.room', 'invoice.booking.resident.user', 'verifier'])
-            ->when($filters['status'] ?? 'pending', fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when(
+                ($filters['status'] ?? 'pending') && ($filters['status'] ?? 'pending') !== 'semua',
+                fn (Builder $query) => $query->where('status', $filters['status'] ?? 'pending'),
+            )
+            ->when($filters['month'] ?? null, fn (Builder $query, string $month) => $query->whereHas(
+                'invoice',
+                fn (Builder $invoice) => $invoice->where('period', $month),
+            ))
             ->when($filters['q'] ?? null, fn (Builder $query, string $q) => $query->where(function (Builder $inner) use ($q) {
                 $inner->whereHas('invoice.booking.room', fn (Builder $room) => $room->where('room_number', 'like', "%{$q}%"))
                     ->orWhereHas('invoice.booking.resident.user', fn (Builder $user) => $user->where('name', 'like', "%{$q}%"));
@@ -77,6 +87,25 @@ class PaymentService
             ->orderByDesc('paid_at')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * Total nominal pembayaran terverifikasi sesuai filter aktif —
+     * ringkasan untuk tab riwayat transaksi.
+     */
+    public function verifiedTotal(array $filters = []): float
+    {
+        return (float) Payment::query()
+            ->where('status', 'terverifikasi')
+            ->when($filters['month'] ?? null, fn (Builder $query, string $month) => $query->whereHas(
+                'invoice',
+                fn (Builder $invoice) => $invoice->where('period', $month),
+            ))
+            ->when($filters['q'] ?? null, fn (Builder $query, string $q) => $query->where(function (Builder $inner) use ($q) {
+                $inner->whereHas('invoice.booking.room', fn (Builder $room) => $room->where('room_number', 'like', "%{$q}%"))
+                    ->orWhereHas('invoice.booking.resident.user', fn (Builder $user) => $user->where('name', 'like', "%{$q}%"));
+            }))
+            ->sum('amount');
     }
 
     /**
