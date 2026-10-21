@@ -96,8 +96,11 @@ Data demo mengikuti angka pada desain UI: **29 kamar** (Lantai 1-AC ×9 @Rp 600r
 | POST | `/invoices/{id}/payments` | token | kirim pembayaran — `amount`, `method` transfer/tunai, `proof` gambar (wajib untuk transfer) |
 | GET | `/notifications` | token | notifikasi pengingat pembayaran + jumlah belum dibaca |
 | POST | `/notifications/mark-read` | token | tandai semua notifikasi terbaca |
+| GET | `/chat/rooms` | token | daftar grup chat milik penghuni + badge belum dibaca |
+| GET | `/chat/rooms/{id}/messages?after_id=` | token | pesan grup (terbaru di akhir); `after_id` untuk polling |
+| POST | `/chat/rooms/{id}/messages` | token | kirim pesan teks (`is_announcement` hanya untuk admin) |
 
-Admin web: `PUT /residents/{user}/validation` (Terima/Tolak akun baru) dari halaman **Data Penghuni**, serta `GET /payments` + `PUT /payments/{id}/verification` (verifikasi pembayaran) dan `GET /payments/{id}/receipt` (kuitansi siap cetak) dari halaman **Verifikasi Pembayaran**.
+Admin web: `PUT /residents/{user}/validation` (Terima/Tolak akun baru) dari halaman **Data Penghuni**, `GET /payments` + `PUT /payments/{id}/verification` (verifikasi pembayaran) dan `GET /payments/{id}/receipt` (kuitansi siap cetak) dari halaman **Verifikasi Pembayaran**, serta `GET /chat` + `POST /chat/rooms[/{room}/messages]` (grup chat & pengumuman resmi) dari halaman **Chat & Pengumuman**.
 
 ## Sprint 1 (28 Sep – 10 Okt 2026) ✅
 
@@ -109,7 +112,7 @@ Admin web: `PUT /residents/{user}/validation` (Terima/Tolak akun baru) dari hala
 - [x] Pencarian kamar berdasarkan kategori/kriteria (mobile + web)
 - [x] Admin mencetak katalog kamar (web, `/rooms/print`)
 
-Menu **Chat & Pengumuman** (Sprint 3) dan **Laporan Keuangan** (Sprint 4) sudah tampil di sidebar web & bottom nav mobile sebagai penanda sprint berikutnya.
+Menu **Laporan Keuangan** (Sprint 4) tampil di sidebar web sebagai penanda sprint terakhir.
 
 ### Revisi Sprint 1 (branch `sprint1rev`)
 
@@ -138,15 +141,27 @@ php artisan schedule:list            # cek jadwal terdaftar (harian 08:00)
 
 Untuk scheduler berjalan terus-menerus di lokal: `php artisan schedule:work`.
 
+## Sprint 3 (25 Okt – 7 Nov 2026) ✅ — branch `sprint3`
+
+- [x] **Chat grup penghuni** (mobile, tab Chat) — daftar grup dengan badge belum-dibaca & pratinjau pesan terakhir; percakapan gelembung kiri/kanan, polling pesan baru tiap 4 detik; penghuni otomatis bergabung ke grup *Umum* saat pertama membuka chat
+- [x] **Pengumuman resmi admin via chat** (web, menu Chat & Pengumuman) — admin memantau semua grup, membalas percakapan, menandai pesan sebagai **Pengumuman Resmi** (tampil berstyle khusus amber di web & mobile), dan dapat membuat grup baru dengan memilih anggota
+- [x] **Logout penghuni** (mobile) — sudah tersedia sejak Sprint 1 (tombol Keluar di Profil mencabut token)
+- [x] **Riwayat seluruh transaksi pembayaran** (web) — tab *Semua Transaksi* di Verifikasi Pembayaran + filter periode tagihan + total pembayaran terverifikasi sesuai filter
+
+Keamanan chat: penghuni hanya bisa mengakses grup tempatnya menjadi anggota (404 bila bukan); penanda `is_announcement` ditolak (422) bila dikirim penghuni.
+
+## Pengujian
+
 ## Pengujian
 
 ```bash
-# Web admin — 40 uji end-to-end (Sprint 1 + revisi + Sprint 2:
-# persetujuan registrasi, CRUD kamar, pemesanan -> tagihan -> bayar ->
-# verifikasi -> kuitansi, gate peran)
+# Web admin — ±50 uji end-to-end (Sprint 1-3: persetujuan registrasi,
+# CRUD kamar, pemesanan -> tagihan -> bayar -> verifikasi -> kuitansi,
+# chat grup + pengumuman, riwayat transaksi, gate peran)
 cd web && php artisan serve &
 python tests/web_flow_test.py
 
-# Mobile — 5 uji widget (login, registrasi, tagihan + validasi bayar)
+# Mobile — 6 uji widget (login, registrasi, tagihan + validasi bayar,
+# chat grup + kirim pesan)
 cd mobile && flutter analyze && flutter test
 ```

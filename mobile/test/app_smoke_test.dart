@@ -33,8 +33,17 @@ Map<String, dynamic> _userJson({bool withRoom = false}) => {
       },
     };
 
+
+/// Response JSON ber-charset UTF-8 (default package:http latin1 tidak
+/// bisa memuat karakter seperti em-dash "—").
+http.Response _jsonResponse(Object data, [int status = 200]) => http.Response(
+      jsonEncode(data),
+      status,
+      headers: {'content-type': 'application/json; charset=utf-8'},
+    );
+
 /// Mock API: login/me/rooms semuanya sukses.
-http.Client _mockApi() => MockClient((request) async {
+http.Client mockApi() => MockClient((request) async {
       final path = request.url.path;
 
       if (path == '/api/v1/auth/register' && request.method == 'POST') {
@@ -180,6 +189,69 @@ http.Client _mockApi() => MockClient((request) async {
         return http.Response(jsonEncode({'data': {'marked': 1}}), 200);
       }
 
+      if (path == '/api/v1/chat/rooms') {
+        return _jsonResponse({
+            'data': [
+              {
+                'id': 1,
+                'name': 'Umum — Kost Akbar',
+                'description': 'Grup utama.',
+                'members_count': 22,
+                'unread_count': 2,
+                'last_message': {
+                  'body': 'Pembayaran sewa jatuh tempo tanggal 25.',
+                  'is_announcement': true,
+                  'sender_name': 'Ririn Yudarina',
+                  'sent_at_formatted': '20 Oktober 2026, 08:05',
+                },
+              },
+            ],
+            'unread_total': 2,
+        });
+      }
+
+      if (path == '/api/v1/chat/rooms/1/messages' && request.method == 'GET') {
+        return _jsonResponse({
+            'data': [
+              {
+                'id': 1,
+                'chat_room_id': 1,
+                'body': 'Selamat datang di grup Kost Akbar!',
+                'is_announcement': true,
+                'sent_at': '2026-10-19T08:00:00.000000Z',
+                'sent_at_formatted': '19 Oktober 2026, 08:00',
+                'is_own': false,
+                'sender': {'id': 1, 'name': 'Ririn Yudarina', 'role': 'admin'},
+              },
+              {
+                'id': 2,
+                'chat_room_id': 1,
+                'body': 'Baik bu, terima kasih infonya.',
+                'is_announcement': false,
+                'sent_at': '2026-10-19T08:20:00.000000Z',
+                'sent_at_formatted': '19 Oktober 2026, 08:20',
+                'is_own': false,
+                'sender': {'id': 2, 'name': 'Dimas Pratama', 'role': 'penghuni'},
+              },
+            ],
+        });
+      }
+
+      if (path == '/api/v1/chat/rooms/1/messages' && request.method == 'POST') {
+        return _jsonResponse({
+            'data': {
+              'id': 3,
+              'chat_room_id': 1,
+              'body': (jsonDecode(request.body) as Map<String, dynamic>)['body'],
+              'is_announcement': false,
+              'sent_at': '2026-10-21T09:00:00.000000Z',
+              'sent_at_formatted': '21 Oktober 2026, 09:00',
+              'is_own': true,
+              'sender': {'id': 2, 'name': 'Dimas Pratama', 'role': 'penghuni'},
+            },
+        }, 201);
+      }
+
       return http.Response(jsonEncode({'message': 'not found'}), 404);
     });
 
@@ -214,7 +286,7 @@ void main() {
       'Login sukses -> tiba di Beranda (regresi: spinner tidak menetap)',
       (tester) async {
     await tester.pumpWidget(
-      KostAkbarMobile(apiClient: ApiClient(client: _mockApi())),
+      KostAkbarMobile(apiClient: ApiClient(client: mockApi())),
     );
     await tester.pumpAndSettle();
 
@@ -243,7 +315,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
-      KostAkbarMobile(apiClient: ApiClient(client: _mockApi())),
+      KostAkbarMobile(apiClient: ApiClient(client: mockApi())),
     );
     await tester.pumpAndSettle();
 
@@ -290,7 +362,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
-      KostAkbarMobile(apiClient: ApiClient(client: _mockApi())),
+      KostAkbarMobile(apiClient: ApiClient(client: mockApi())),
     );
     await tester.pumpAndSettle();
 
@@ -333,5 +405,52 @@ void main() {
       find.text('Bukti transfer wajib diunggah untuk pembayaran transfer.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Chat: grup, pengumuman resmi & kirim pesan (Sprint 3)',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      KostAkbarMobile(apiClient: ApiClient(client: mockApi())),
+    );
+    await tester.pumpAndSettle();
+
+    // Login sebagai penghuni.
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'dimaspratama@kostakbar.id',
+    );
+    await tester.enterText(find.byType(TextFormField).last, 'password');
+    await tester.tap(find.text('Masuk Sekarang'));
+    await tester.pumpAndSettle();
+
+    // Pindah ke tab Chat.
+    await tester.tap(find.byIcon(Icons.chat_outlined));
+    await tester.pumpAndSettle();
+
+    // Daftar grup + badge belum dibaca.
+    expect(find.text('Umum — Kost Akbar'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget); // badge 2 belum dibaca
+    expect(find.textContaining('Pembayaran sewa jatuh tempo'), findsOneWidget);
+
+    // Buka percakapan: pengumuman resmi bergaya khusus + pesan biasa.
+    await tester.tap(find.text('Umum — Kost Akbar'));
+    await tester.pumpAndSettle();
+    expect(find.text('PENGUMUMAN RESMI · Ririn Yudarina'), findsOneWidget);
+    expect(find.text('Selamat datang di grup Kost Akbar!'), findsOneWidget);
+    expect(find.text('Baik bu, terima kasih infonya.'), findsOneWidget);
+
+    // Kirim pesan -> muncul sebagai gelembung sendiri.
+    await tester.enterText(find.byType(TextField), 'Halo, uji kirim pesan!');
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Halo, uji kirim pesan!'), findsOneWidget);
+
+    // Kembali ke daftar grup (membuang timer polling).
+    await tester.pageBack();
+    await tester.pumpAndSettle();
   });
 }

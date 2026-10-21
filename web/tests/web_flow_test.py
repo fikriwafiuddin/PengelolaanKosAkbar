@@ -95,6 +95,10 @@ def inertia_headers(version, referer='/login'):
 def main():
     failures = []
 
+    # Periode tagihan berjalan utk filter riwayat transaksi (YYYY-MM).
+    import datetime
+    now_month = datetime.date.today().strftime('%Y-%m')
+
     def check(label, condition, detail=''):
         status = 'PASS' if condition else 'FAIL'
         print(f'[{status}] {label} {detail}')
@@ -378,6 +382,59 @@ def main():
                 status, body = api('/api/v1/invoices', token=token)
                 paid = [i for i in body['data'] if i['status'] == 'lunas']
                 check('tagihan lunas setelah verifikasi', len(paid) == 1)
+
+            # Riwayat transaksi: tab semua + filter periode
+            status, body, _ = fetch('/payments?status=semua&month=' + now_month, headers=inertia)
+            props = json.loads(body)['props']
+            check('GET /payments?status=semua (riwayat transaksi)',
+                  props['payments']['total'] >= 1 and props['verifiedTotal'] > 0,
+                  f"(total={props['payments']['total']}, Rp {int(props['verifiedTotal'])})")
+
+            # ==================================================
+            # C4. Sprint 3: chat grup + pengumuman resmi
+            # ==================================================
+            status, body = api('/api/v1/chat/rooms', token=token)
+            rooms = body.get('data', [])
+            umum = next((r for r in rooms if 'Umum' in r['name']), None)
+            check('API chat rooms (auto-join grup Umum)', status == 200 and umum is not None,
+                  f"({len(rooms)} grup, unread={body.get('unread_total')})")
+
+            if umum:
+                status, body = api(f"/api/v1/chat/rooms/{umum['id']}/messages", token=token)
+                check('API baca pesan grup', status == 200 and len(body['data']) >= 1)
+
+                status, body = api(f"/api/v1/chat/rooms/{umum['id']}/messages", 'POST',
+                                   {'body': 'Halo, saya penghuni baru.'}, token=token)
+                check('API kirim pesan chat', status == 201 and body['data'].get('is_own') is True)
+
+                status, body = api(f"/api/v1/chat/rooms/{umum['id']}/messages", 'POST',
+                                   {'body': 'x', 'is_announcement': True}, token=token)
+                check('API pengumuman oleh penghuni ditolak', status == 422)
+
+            status, body = api('/api/v1/chat/rooms/999/messages', token=token)
+            check('API grup tak dikenal 404', status == 404)
+
+            # Admin web: halaman chat + kirim pengumuman resmi
+            inertia['X-XSRF-TOKEN'] = xsrf_token()
+            status, body, _ = fetch('/chat', headers=inertia)
+            page = json.loads(body)
+            web_umum = next((r for r in page['props']['rooms'] if 'Umum' in r['name']), None)
+            check('GET /chat (admin)', page['component'] == 'chat/index' and web_umum is not None,
+                  f"(grup: {[r['name'][:12] for r in page['props']['rooms']]})")
+
+            if web_umum:
+                inertia['X-XSRF-TOKEN'] = xsrf_token()
+                status, _, _ = fetch(f"/chat/rooms/{web_umum['id']}/messages", headers=inertia,
+                                     method='POST', data=json.dumps({
+                                         'body': 'Uji e2e: kerja bakti Sabtu pagi.',
+                                         'is_announcement': True,
+                                     }))
+                check('POST pengumuman resmi (admin web)', status in (200, 302, 303), f'(status={status})')
+
+                status, body, _ = fetch(f"/chat?room={web_umum['id']}", headers=inertia)
+                msgs = json.loads(body)['props']['messages']
+                check('  pengumuman tampil di percakapan',
+                      msgs and msgs[-1]['is_announcement'] and msgs[-1]['sender']['role'] == 'admin')
 
             api('/api/v1/auth/logout', 'POST', token=token)
 
