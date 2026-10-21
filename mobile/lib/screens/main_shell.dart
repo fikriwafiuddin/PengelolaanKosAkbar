@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'billing/invoices_screen.dart';
-import 'coming_soon_screen.dart';
+import 'chat/chat_rooms_screen.dart';
 import 'home/home_screen.dart';
 import 'profile/profile_screen.dart';
 
 /// Kerangka utama dengan bottom navigation sesuai desain:
-/// Beranda, Tagihan (Sprint 2), Chat (Sprint 3), Profil.
+/// Beranda, Tagihan, Chat, Profil (seluruh sprint 1-3 aktif).
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -23,11 +23,7 @@ class _MainShellState extends State<MainShell> {
     final pages = [
       const HomeScreen(),
       const InvoicesScreen(),
-      const ComingSoonScreen(
-        title: 'Chat',
-        description: 'Pesan grup dan pengumuman resmi akan tersedia pada Sprint 3.',
-        icon: Icons.chat_outlined,
-      ),
+      const ChatRoomsScreen(),
       const ProfileScreen(),
     ];
 
