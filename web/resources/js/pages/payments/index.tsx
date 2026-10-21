@@ -32,8 +32,9 @@ import type { Pagination, Payment } from '@/types/kost';
 
 type Props = {
     payments: Omit<Pagination<Payment>, 'per_page'>;
-    filters: { status?: string; q?: string };
+    filters: { status?: string; q?: string; month?: string };
     statusCounts: Record<string, number>;
+    verifiedTotal: number;
 };
 
 /**
@@ -66,6 +67,7 @@ export default function PaymentsIndex({
     payments: paymentPagination,
     filters,
     statusCounts,
+    verifiedTotal,
 }: Props) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters.q ?? '');
@@ -141,10 +143,17 @@ export default function PaymentsIndex({
                     description="Periksa nominal dan bukti bayar penghuni, terbitkan kuitansi saat diterima."
                 />
 
-                {/* Tab status + pencarian */}
+                {/* Tab status + filter periode + pencarian */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        {STATUS_TABS.map((tab) => {
+                        {[
+                            ...STATUS_TABS,
+                            {
+                                value: 'semua',
+                                label: 'Semua Transaksi',
+                                className: 'bg-secondary text-secondary-foreground',
+                            },
+                        ].map((tab) => {
                             const isActive = activeStatus === tab.value;
 
                             return (
@@ -170,22 +179,54 @@ export default function PaymentsIndex({
                                                 : 'bg-muted',
                                         )}
                                     >
-                                        {statusCounts[tab.value] ?? 0}
+                                        {tab.value === 'semua'
+                                            ? Object.values(statusCounts).reduce(
+                                                  (sum, count) => sum + count,
+                                                  0,
+                                              )
+                                            : (statusCounts[tab.value] ?? 0)}
                                     </span>
                                 </button>
                             );
                         })}
                     </div>
 
-                    <div className="relative w-full max-w-sm sm:w-auto">
-                        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <div className="flex flex-wrap items-center gap-2">
                         <Input
-                            className="w-full pl-9 sm:w-72"
-                            placeholder="Cari nama penghuni / nomor kamar..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            type="month"
+                            className="w-44"
+                            value={filters.month ?? ''}
+                            onChange={(e) =>
+                                applyFilters({
+                                    month: e.target.value || undefined,
+                                })
+                            }
+                            title="Filter periode tagihan"
                         />
+                        <div className="relative w-full max-w-sm sm:w-auto">
+                            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                className="w-full pl-9 sm:w-72"
+                                placeholder="Cari nama penghuni / nomor kamar..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
                     </div>
+                </div>
+
+                {/* Total transaksi terverifikasi sesuai filter */}
+                <div className="-mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <ReceiptText className="size-4 text-teal-600" />
+                    <span>
+                        Total pembayaran terverifikasi pada filter ini:{' '}
+                        <strong className="text-foreground">
+                            Rp{' '}
+                            {verifiedTotal.toLocaleString('id-ID', {
+                                maximumFractionDigits: 0,
+                            })}
+                        </strong>
+                    </span>
                 </div>
 
                 {/* Tabel pembayaran */}

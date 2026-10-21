@@ -4,10 +4,11 @@ import { dashboard } from '@/routes';
 import * as roomsRoutes from '@/routes/rooms';
 import * as residentsRoutes from '@/routes/residents';
 import * as paymentsRoutes from '@/routes/payments';
+import * as chatRoutes from '@/routes/chat';
 import type { NavItem } from '@/types';
 
 /**
- * Navigasi utama dashboard admin Kost Akbar (Sprint 1–2).
+ * Navigasi utama dashboard admin Kost Akbar (Sprint 1–3).
  */
 export const mainNavItems: NavItem[] = [
     {
@@ -30,6 +31,11 @@ export const mainNavItems: NavItem[] = [
         href: paymentsRoutes.index(),
         icon: ReceiptText,
     },
+    {
+        title: 'Chat & Pengumuman',
+        href: chatRoutes.index(),
+        icon: MessageSquareText,
+    },
 ];
 
 /**
@@ -37,12 +43,6 @@ export const mainNavItems: NavItem[] = [
  * (nonaktif) agar struktur menu sesuai desain UI.
  */
 export const upcomingNavItems: (NavItem & { sprint: string })[] = [
-    {
-        title: 'Chat & Pengumuman',
-        href: '#',
-        icon: MessageSquareText,
-        sprint: 'Sprint 3',
-    },
     {
         title: 'Laporan Keuangan',
         href: '#',

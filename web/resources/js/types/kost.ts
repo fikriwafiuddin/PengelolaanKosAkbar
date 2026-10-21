@@ -79,6 +79,35 @@ export type ResidentStats = {
 
 export type PaymentStatus = 'pending' | 'terverifikasi' | 'ditolak';
 
+export type ChatRoomSummary = {
+    id: number;
+    name: string;
+    description: string | null;
+    members_count: number;
+    unread_count: number;
+    last_message: {
+        body: string;
+        is_announcement: boolean;
+        sender_name: string | null;
+        sent_at_formatted: string | null;
+    } | null;
+};
+
+export type ChatMessage = {
+    id: number;
+    chat_room_id: number;
+    body: string;
+    is_announcement: boolean;
+    sent_at: string | null;
+    sent_at_formatted: string | null;
+    is_own: boolean;
+    sender: {
+        id: number;
+        name: string | null;
+        role: string;
+    } | null;
+};
+
 /**
  * Ringkasan tagihan yang terlampir pada data pembayaran.
  */
