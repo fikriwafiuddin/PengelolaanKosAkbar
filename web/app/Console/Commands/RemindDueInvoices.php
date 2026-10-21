@@ -29,6 +29,9 @@ class RemindDueInvoices extends Command
                 // ...atau sudah melewati jatuh tempo (ditagih ulang).
                 $query->orWhere('due_date', '<', today());
             })
+            // Lewati tagihan yang bayarannya sudah dikirim dan sedang
+            // menunggu verifikasi admin — tidak perlu ditagih ulang.
+            ->whereDoesntHave('payments', fn ($query) => $query->where('status', 'pending'))
             ->with('booking.room', 'booking.resident.user')
             ->get();
 
