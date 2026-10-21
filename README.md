@@ -100,7 +100,7 @@ Data demo mengikuti angka pada desain UI: **29 kamar** (Lantai 1-AC ×9 @Rp 600r
 | GET | `/chat/rooms/{id}/messages?after_id=` | token | pesan grup (terbaru di akhir); `after_id` untuk polling |
 | POST | `/chat/rooms/{id}/messages` | token | kirim pesan teks (`is_announcement` hanya untuk admin) |
 
-Admin web: `PUT /residents/{user}/validation` (Terima/Tolak akun baru) dari halaman **Data Penghuni**, `GET /payments` + `PUT /payments/{id}/verification` (verifikasi pembayaran) dan `GET /payments/{id}/receipt` (kuitansi siap cetak) dari halaman **Verifikasi Pembayaran**, serta `GET /chat` + `POST /chat/rooms[/{room}/messages]` (grup chat & pengumuman resmi) dari halaman **Chat & Pengumuman**.
+Admin web: `PUT /residents/{user}/validation` (Terima/Tolak akun baru) dari halaman **Data Penghuni**, `GET /payments` + `PUT /payments/{id}/verification` (verifikasi pembayaran) dan `GET /payments/{id}/receipt` (kuitansi siap cetak) dari halaman **Verifikasi Pembayaran**, `GET /chat` + `POST /chat/rooms[/{room}/messages]` (grup chat & pengumuman resmi) dari halaman **Chat & Pengumuman**, serta `GET /finance`, `POST/DELETE /finance/expenses`, dan `GET /finance/export?type=pembayaran|kas` (laporan keuangan + ekspor CSV) dari halaman **Laporan Keuangan**.
 
 ## Sprint 1 (28 Sep – 10 Okt 2026) ✅
 
@@ -150,14 +150,23 @@ Untuk scheduler berjalan terus-menerus di lokal: `php artisan schedule:work`.
 
 Keamanan chat: penghuni hanya bisa mengakses grup tempatnya menjadi anggota (404 bila bukan); penanda `is_announcement` ditolak (422) bila dikirim penghuni.
 
-## Pengujian
+## Sprint 4 (8 – 21 Nov 2026) ✅ — branch `sprint4`
+
+- [x] **Laporan pembayaran sewa kos** (web, menu Laporan Keuangan) — tabel seluruh pembayaran terverifikasi per periode (penghuni, kamar, metode, no. kuitansi, nominal)
+- [x] **Rekapitulasi kas pemasukan sewa** — total pemasukan bulanan dari pembayaran terverifikasi + perbandingan % vs bulan sebelumnya
+- [x] **Rekapitulasi pengeluaran** — pencatatan pengeluaran operasional (tanggal ≤ hari ini, kategori, nominal ≥ Rp 1.000 — pesan Indonesia) + rekap per kategori dengan bar proporsional; data demo 3 bulan via `ExpenseSeeder`
+- [x] **Laba bulanan** — kartu pemasukan − pengeluaran + grafik batang tren 6 bulan (pemasukan vs pengeluaran)
+- [x] **Ekspor** — CSV laporan pembayaran & rekap kas (BOM UTF-8, delimiter `;` — langsung rapi dibuka Excel/Sheets)
+
+Rumus keuangan: pemasukan = Σ pembayaran `terverifikasi` pada periode tagihan bulan tsb; pengeluaran = Σ `expenses` pada bulan tsb; laba = pemasukan − pengeluaran.
 
 ## Pengujian
 
 ```bash
-# Web admin — ±50 uji end-to-end (Sprint 1-3: persetujuan registrasi,
+# Web admin — ±60 uji end-to-end (Sprint 1-4: persetujuan registrasi,
 # CRUD kamar, pemesanan -> tagihan -> bayar -> verifikasi -> kuitansi,
-# chat grup + pengumuman, riwayat transaksi, gate peran)
+# chat grup + pengumuman, riwayat transaksi, laporan keuangan + ekspor
+# CSV, gate peran)
 cd web && php artisan serve &
 python tests/web_flow_test.py
 

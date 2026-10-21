@@ -98,6 +98,7 @@ def main():
     # Periode tagihan berjalan utk filter riwayat transaksi (YYYY-MM).
     import datetime
     now_month = datetime.date.today().strftime('%Y-%m')
+    now_today = datetime.date.today().strftime('%Y-%m-%d')
 
     def check(label, condition, detail=''):
         status = 'PASS' if condition else 'FAIL'
@@ -435,6 +436,61 @@ def main():
                 msgs = json.loads(body)['props']['messages']
                 check('  pengumuman tampil di percakapan',
                       msgs and msgs[-1]['is_announcement'] and msgs[-1]['sender']['role'] == 'admin')
+
+            # ==================================================
+            # C5. Sprint 4: laporan keuangan + ekspor
+            # ==================================================
+            inertia['X-XSRF-TOKEN'] = xsrf_token()
+            status, body, _ = fetch('/finance?month=' + now_month, headers=inertia)
+            page = json.loads(body)
+            fprops = page['props']
+            summary = fprops['summary']
+            math_ok = abs(summary['profit'] - (summary['income'] - summary['expense'])) < 0.01
+            check('GET /finance (ringkasan bulan ini)', page['component'] == 'finance/index'
+                  and math_ok and summary['income'] > 0,
+                  f"(masuk Rp {int(summary['income'])}, keluar Rp {int(summary['expense'])}, "
+                  f"laba Rp {int(summary['profit'])})")
+            check('  laporan pembayaran terisi', len(fprops['paymentReport']) >= 1,
+                  f"({len(fprops['paymentReport'])} transaksi, {len(fprops['expenses'])} pengeluaran)")
+            check('  tren 6 bulan', len(fprops['trend']) == 6)
+
+            # Tambah + hapus pengeluaran
+            inertia['X-XSRF-TOKEN'] = xsrf_token()
+            status, _, _ = fetch('/finance/expenses', headers=inertia, method='POST',
+                                 data=json.dumps({'expense_date': now_today, 'category': 'Uji E2E',
+                                                  'description': 'biaya uji', 'amount': 50000}))
+            check('POST pengeluaran', status in (200, 302, 303), f'(status={status})')
+
+            inertia['X-XSRF-TOKEN'] = xsrf_token()
+            status, body, _ = fetch('/finance?month=' + now_month, headers=inertia)
+            expense_rows = json.loads(body)['props']['expenses']
+            e2e_expense = next((e for e in expense_rows if e['category'] == 'Uji E2E'), None)
+            check('  pengeluaran tercatat', e2e_expense is not None,
+                  f"({e2e_expense['amount_formatted'] if e2e_expense else '-'})")
+
+            if e2e_expense:
+                inertia['X-XSRF-TOKEN'] = xsrf_token()
+                status, _, _ = fetch(f"/finance/expenses/{e2e_expense['id']}", headers=inertia,
+                                     method='DELETE')
+                check('DELETE pengeluaran uji', status in (200, 302, 303), f'(status={status})')
+
+            inertia['X-XSRF-TOKEN'] = xsrf_token()
+            status, body, _ = fetch('/finance/expenses', headers=inertia, method='POST',
+                                     data=json.dumps({'expense_date': '2030-01-01', 'category': 'X',
+                                                      'amount': 5000}))
+            check('  validasi: tanggal masa depan ditolak', status == 422)
+
+            # Ekspor CSV (unduhan biasa tanpa header Inertia)
+            status, csv_body, headers_csv = fetch(f'/finance/export?type=pembayaran&month={now_month}')
+            check('GET ekspor CSV pembayaran', status == 200
+                  and 'text/csv' in headers_csv.get('Content-Type', '')
+                  and 'attachment' in headers_csv.get('Content-Disposition', '')
+                  and len(csv_body.strip().splitlines()) >= 2,
+                  f"({len(csv_body.strip().splitlines())} baris)")
+
+            status, csv_body, _ = fetch(f'/finance/export?type=kas&month={now_month}')
+            check('GET ekspor CSV kas (laba tercantum)',
+                  status == 200 and 'LABA' in csv_body)
 
             api('/api/v1/auth/logout', 'POST', token=token)
 
