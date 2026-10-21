@@ -10,10 +10,10 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     /**
-     * Seed data demo Kost Akbar (Sprint 1).
+     * Seed data demo Kost Akbar (Sprint 1-3).
      *
      * Urutan penting: admin & fasilitas dulu, lalu kamar, terakhir
-     * penghuni yang menempati kamar-kamar terisi.
+     * penghuni yang menempati kamar-kamar terisi + grup chat.
      */
     public function run(): void
     {
@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             FacilitySeeder::class,
             RoomSeeder::class,
             ResidentSeeder::class,
+            ChatRoomSeeder::class,
         ]);
     }
 }

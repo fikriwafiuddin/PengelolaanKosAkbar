@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\ChatController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\PaymentController;
 use App\Http\Controllers\Web\ResidentController;
@@ -37,6 +38,13 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::put('payments/{payment}/verification', [PaymentController::class, 'update'])
         ->whereNumber('payment')
         ->name('payments.verification.update');
+
+    // Chat grup & pengumuman resmi (Sprint 3)
+    Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
+    Route::post('chat/rooms', [ChatController::class, 'storeRoom'])->name('chat.rooms.store');
+    Route::post('chat/rooms/{room}/messages', [ChatController::class, 'storeMessage'])
+        ->whereNumber('room')
+        ->name('chat.messages.store');
 });
 
 require __DIR__.'/settings.php';

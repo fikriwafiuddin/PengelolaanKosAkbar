@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BookingController;
+use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\FacilityController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -56,5 +57,14 @@ Route::prefix('v1')->group(function () {
         // Notifikasi pengingat pembayaran (Sprint 2)
         Route::get('notifications', [NotificationController::class, 'index'])->name('api.v1.notifications.index');
         Route::post('notifications/mark-read', [NotificationController::class, 'markRead'])->name('api.v1.notifications.markRead');
+
+        // Chat grup & pengumuman (Sprint 3)
+        Route::get('chat/rooms', [ChatController::class, 'rooms'])->name('api.v1.chat.rooms');
+        Route::get('chat/rooms/{room}/messages', [ChatController::class, 'messages'])
+            ->whereNumber('room')
+            ->name('api.v1.chat.messages');
+        Route::post('chat/rooms/{room}/messages', [ChatController::class, 'store'])
+            ->whereNumber('room')
+            ->name('api.v1.chat.send');
     });
 });
