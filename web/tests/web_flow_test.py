@@ -415,6 +415,15 @@ def main():
             status, body = api('/api/v1/chat/rooms/999/messages', token=token)
             check('API grup tak dikenal 404', status == 404)
 
+            # Registrasi token FCM device (fallback: endpoint tetap
+            # berfungsi walau service account belum dipasang).
+            status, body = api('/api/v1/devices', 'POST',
+                               {'token': 'e2e-fcm-token-xyz', 'platform': 'android'}, token=token)
+            check('API daftar token device (FCM)', status == 200)
+            status, body = api('/api/v1/devices', 'DELETE',
+                               {'token': 'e2e-fcm-token-xyz'}, token=token)
+            check('API hapus token device (FCM)', status == 200)
+
             # Admin web: halaman chat + kirim pengumuman resmi
             inertia['X-XSRF-TOKEN'] = xsrf_token()
             status, body, _ = fetch('/chat', headers=inertia)

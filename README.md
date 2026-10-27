@@ -160,6 +160,17 @@ Keamanan chat: penghuni hanya bisa mengakses grup tempatnya menjadi anggota (404
 
 Rumus keuangan: pemasukan = Σ pembayaran `terverifikasi` pada periode tagihan bulan tsb; pengeluaran = Σ `expenses` pada bulan tsb; laba = pemasukan − pengeluaran.
 
+## Firebase (opsional, fallback otomatis) — branch `firebase`
+
+Notifikasi & chat dapat di-upgrade memakai Firebase **tanpa memecah apa pun** — tanpa konfigurasi, aplikasi tetap berjalan penuh (polling chat + notifikasi database):
+
+- **FCM push notification** — reminder jatuh tempo, pesan/pengumuman chat baru, dan hasil verifikasi pembayaran (kuitansi/ditolak) terkirim sebagai notifikasi sistem walau aplikasi tertutup
+- **Chat realtime Firestore** — server Laravel (satu-satunya sumber kebenaran) menyalin tiap pesan ke Firestore; aplikasi mobile menerima update instan lewat stream (fallback otomatis ke polling bila Firebase nonaktif/stream gagal)
+
+Arsitektur server: `FcmService` memakai REST API HTTP v1 dengan service account (JWT RS256 via openssl — tanpa paket composer); token device penghuni tersimpan di tabel `device_tokens` (`POST/DELETE /api/v1/devices`).
+
+Panduan setup lengkap (buat project, `google-services.json`, Firestore rules, service account): **[docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)**.
+
 ## Pengujian
 
 ```bash
