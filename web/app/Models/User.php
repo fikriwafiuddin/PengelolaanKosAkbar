@@ -103,6 +103,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Token FCM device milik user (untuk push notification).
+     */
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

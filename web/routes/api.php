@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BookingController;
 use App\Http\Controllers\Api\V1\ChatController;
+use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\FacilityController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -66,5 +67,9 @@ Route::prefix('v1')->group(function () {
         Route::post('chat/rooms/{room}/messages', [ChatController::class, 'store'])
             ->whereNumber('room')
             ->name('api.v1.chat.send');
+
+        // Registrasi token FCM device (Firebase)
+        Route::post('devices', [DeviceTokenController::class, 'store'])->name('api.v1.devices.store');
+        Route::delete('devices', [DeviceTokenController::class, 'destroy'])->name('api.v1.devices.destroy');
     });
 });

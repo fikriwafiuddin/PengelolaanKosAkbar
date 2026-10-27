@@ -17,6 +17,9 @@ use Illuminate\Validation\ValidationException;
  */
 class ChatService
 {
+    public function __construct(private readonly FcmService $fcm)
+    {}
+
     /**
      * Nama grup baku — grup utama seluruh penghuni & pengelola.
      */
@@ -158,7 +161,48 @@ class ChatService
         // Pesan sendiri langsung terhitung sudah dibaca.
         $this->markReadUpTo($room, $sender, $message->id);
 
-        return $message->load('user:id,name,role');
+        $message->load('user:id,name,role');
+
+        // Firebase: salin pesan ke Firestore (stream realtime mobile)
+        // + push FCM ke anggota grup selain pengirim.
+        $this->broadcastMessage($room, $sender, $message);
+
+        return $message;
+    }
+
+    /**
+     * Sebar pesan baru ke Firebase: dual-write Firestore + push FCM
+     * ke anggota grup (selain pengirim). No-op bila Firebase belum
+     * dikonfigurasi.
+     */
+    private function broadcastMessage(ChatRoom $room, User $sender, Message $message): void
+    {
+        $this->fcm->writeChatMessage($message);
+
+        if (! $this->fcm->enabled()) {
+            return;
+        }
+
+        $recipients = $room->members()
+            ->whereKeyNot($sender->id)
+            ->where('status', 'aktif')
+            ->get();
+
+        $title = $message->is_announcement
+            ? 'Pengumuman — '.$room->name
+            : $sender->name.' — '.$room->name;
+
+        $this->fcm->sendToUsers(
+            $recipients,
+            $title,
+            \Str::limit($message->body, 120),
+            [
+                'type' => 'chat',
+                'chat_room_id' => (string) $room->id,
+                'message_id' => (string) $message->id,
+                'is_announcement' => $message->is_announcement ? '1' : '0',
+            ],
+        );
     }
 
     /**

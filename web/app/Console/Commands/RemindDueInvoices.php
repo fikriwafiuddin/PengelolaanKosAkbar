@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Invoice;
 use App\Notifications\PaymentDueReminder;
+use App\Services\FcmService;
 use Illuminate\Console\Command;
 
 /**
@@ -13,6 +14,11 @@ use Illuminate\Console\Command;
  */
 class RemindDueInvoices extends Command
 {
+    public function __construct(private readonly FcmService $fcm)
+    {
+        parent::__construct();
+    }
+
     protected $signature = 'payments:remind {--days=5 : Berapa hari ke depan jatuh tempo diingatkan}';
 
     protected $description = 'Kirim notifikasi pengingat tagihan sewa yang belum dibayar (mendekati / lewat jatuh tempo)';
@@ -54,7 +60,24 @@ class RemindDueInvoices extends Command
                 continue;
             }
 
-            $user->notify(new PaymentDueReminder($invoice));
+            $reminder = new PaymentDueReminder($invoice);
+            $user->notify($reminder);
+
+            // Push FCM (bila Firebase dikonfigurasi) — muncul sebagai
+            // notifikasi sistem walau aplikasi tertutup.
+            $data = $reminder->toArray($user);
+
+            $this->fcm->sendToUser(
+                $user,
+                $data['title'],
+                $data['body'],
+                [
+                    'type' => 'reminder',
+                    'invoice_id' => (string) $invoice->id,
+                    'room_number' => (string) $data['room_number'],
+                ],
+            );
+
             $sent++;
         }
 

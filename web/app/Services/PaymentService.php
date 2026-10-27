@@ -18,6 +18,8 @@ use Illuminate\Validation\ValidationException;
  */
 class PaymentService
 {
+    public function __construct(private readonly FcmService $fcm)
+    {}
     /**
      * Kirim pembayaran untuk satu tagihan: nominal + bukti transfer,
      * status pending sampai diverifikasi admin.
@@ -157,8 +159,43 @@ class PaymentService
                 $payment->invoice->update(['status' => 'lunas']);
             }
 
+            $this->notifyVerification($payment);
+
             return $payment->refresh();
         });
+    }
+
+    /**
+     * Push FCM hasil verifikasi ke penghuni yang membayar (bila
+     * Firebase dikonfigurasi).
+     */
+    private function notifyVerification(Payment $payment): void
+    {
+        if (! $this->fcm->enabled()) {
+            return;
+        }
+
+        $resident = $payment->invoice->booking?->resident?->user;
+
+        if (! $resident) {
+            return;
+        }
+
+        $approved = $payment->status === 'terverifikasi';
+
+        $this->fcm->sendToUser(
+            $resident,
+            $approved ? 'Pembayaran diterima' : 'Pembayaran ditolak',
+            $approved
+                ? 'Pembayaran Rp '.number_format((float) $payment->amount, 0, ',', '.')
+                    .' telah diverifikasi. Kuitansi '.$payment->receipt_no.' terbit.'
+                : 'Pembayaran Anda ditolak pengelola. Silakan periksa tagihan di aplikasi.',
+            [
+                'type' => 'payment',
+                'payment_id' => (string) $payment->id,
+                'status' => $payment->status,
+            ],
+        );
     }
 
     /**
