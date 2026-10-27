@@ -96,6 +96,18 @@ class ApiClient {
     );
   }
 
+  Future<dynamic> delete(String path, {Object? body}) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+
+    return _send(
+      () => _client.delete(
+        uri,
+        headers: {..._headers, 'Content-Type': 'application/json'},
+        body: body == null ? null : jsonEncode(body),
+      ),
+    );
+  }
+
   /// POST multipart (dipakai unggah bukti pembayaran berupa gambar).
   ///
   /// [fields] — field teks biasa; [fileField]/[filePath] — lampiran

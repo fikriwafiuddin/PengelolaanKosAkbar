@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../data/api_client.dart';
 import '../data/models/user.dart';
 import '../data/services/auth_service.dart';
+import '../data/services/push_service.dart';
 
 /// Status sesi pengguna aplikasi mobile.
 enum AuthStatus { loading, loggedOut, loggedIn }
@@ -39,6 +40,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       _user = await _auth.me();
       _status = AuthStatus.loggedIn;
+      unawaited(PushService.activate(_client));
     } on ApiException {
       // Token kedaluwarsa / tidak valid — anggap logout.
       await _client.clearToken();
@@ -57,6 +59,10 @@ class AuthProvider extends ChangeNotifier {
     await _client.saveToken(result.token);
     _user = result.user;
     _status = AuthStatus.loggedIn;
+
+    // Daftarkan token FCM device ke server (no-op tanpa Firebase).
+    unawaited(PushService.activate(_client));
+
     notifyListeners();
   }
 
@@ -130,6 +136,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // Lepas token FCM device dari server sebelum sesi berakhir
+    // (no-op tanpa Firebase).
+    await PushService.deactivate(_client);
+
     try {
       await _auth.logout();
     } on ApiException {

@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Push notification FCM (Android 13+ minta izin runtime,
+         di-handle FirebaseMessaging.requestPermission). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Kost Akbar"
         android:name="${applicationName}"

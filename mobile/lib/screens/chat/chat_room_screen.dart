@@ -1,15 +1,25 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/api_client.dart';
 import '../../data/models/message.dart';
 import '../../data/services/chat_service.dart';
+import '../../data/services/push_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 
 /// Percakapan satu grup chat: gelembung pesan (pengumuman resmi
-/// bergaya khusus) + komposer + polling pesan baru tiap 4 detik.
+/// bergaya khusus) + komposer.
+///
+/// Sumber data pesan:
+/// - Firebase aktif    -> stream Firestore realtime (instan, tanpa
+///   polling); pengiriman tetap lewat API Laravel (satu sumber
+///   kebenaran, server yang menyalin ke Firestore).
+/// - Firebase nonaktif -> polling API tiap 4 detik (fallback).
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({super.key, required this.roomId, required this.roomName});
 
@@ -26,6 +36,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final ScrollController _scroll = ScrollController();
   final List<Message> _messages = [];
   Timer? _pollTimer;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _streamSub;
+  late final int? _currentUserId;
   bool _loading = true;
   bool _sending = false;
   String? _error;
@@ -34,13 +46,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void initState() {
     super.initState();
     _chat = ChatService(context.read<ApiClient>());
+    _currentUserId = context.read<AuthProvider>().user?.id;
     _fetchInitial();
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _pollNew());
+
+    if (PushService.firestoreEnabled) {
+      _listenFirestore();
+    } else {
+      _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) => _pollNew());
+    }
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _streamSub?.cancel();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
@@ -81,6 +100,73 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     } on ApiException {
       // Koneksi sempat gagal — coba lagi pada tick berikutnya.
     }
+  }
+
+  /// Langganan realtime Firestore: dokumen
+  /// chatRooms/{roomId}/messages diurutkan berdasarkan id pesan
+  /// (id MySQL — server Laravel menyalin setiap pesan baru ke sini).
+  void _listenFirestore() {
+    _streamSub = FirebaseFirestore.instance
+        .collection('chatRooms/${widget.roomId}/messages')
+        .orderBy('id')
+        .limitToLast(200)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!mounted) {
+              return;
+            }
+
+            final previousLastId = _messages.isNotEmpty ? _messages.last.id : null;
+            final messages = snapshot.docs.map(_messageFromDoc).toList();
+
+            setState(() {
+              _messages
+                ..clear()
+                ..addAll(messages);
+              _loading = false;
+            });
+
+            if (messages.isNotEmpty && messages.last.id != previousLastId) {
+              _jumpToBottom();
+            }
+          },
+          onError: (_) {
+            // Stream gagal (mis. rules belum dipasang) — kembali ke
+            // polling supaya chat tetap hidup.
+            _streamSub?.cancel();
+            if (mounted && _pollTimer == null) {
+              _pollTimer = Timer.periodic(
+                const Duration(seconds: 4),
+                (_) => _pollNew(),
+              );
+            }
+          },
+        );
+  }
+
+  /// Ubah dokumen Firestore menjadi model Message (isOwn dihitung
+  /// dari id pengguna yang login).
+  Message _messageFromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
+    final sentAt = data['sentAt'];
+
+    final date = sentAt is Timestamp
+        ? sentAt.toDate()
+        : DateTime.tryParse(sentAt?.toString() ?? '') ?? DateTime.now();
+
+    return Message(
+      id: (data['id'] as num?)?.toInt() ?? int.tryParse(doc.id) ?? 0,
+      chatRoomId: widget.roomId,
+      body: data['body'] as String? ?? '',
+      isAnnouncement: data['isAnnouncement'] as bool? ?? false,
+      sentAt: date.toIso8601String(),
+      sentAtFormatted: DateFormat('d MMMM yyyy, HH:mm', 'id_ID').format(date),
+      isOwn: (data['senderId'] as num?)?.toInt() == _currentUserId,
+      senderId: data['senderId'] as num?,
+      senderName: data['senderName'] as String?,
+      senderRole: data['senderRole'] as String?,
+    );
   }
 
   Future<void> _send() async {

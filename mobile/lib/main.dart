@@ -1,14 +1,25 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'config/firebase_config.dart';
 import 'data/api_client.dart';
 import 'providers/auth_provider.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Simbol tanggal lokal (id_ID) untuk DateFormat di seluruh aplikasi.
   initializeDateFormatting('id_ID');
+
+  // Firebase opsional: hanya diinisialisasi bila dikonfigurasi
+  // (lihat config/firebase_config.dart). Tanpa konfigurasi, seluruh
+  // fitur memakai fallback polling + notifikasi database.
+  if (kFirebaseOptions != null) {
+    await Firebase.initializeApp(options: kFirebaseOptions);
+  }
 
   runApp(const KostAkbarMobile());
 }
