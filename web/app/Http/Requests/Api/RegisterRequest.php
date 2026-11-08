@@ -39,9 +39,9 @@ class RegisterRequest extends FormRequest
 
             // Profil identitas penghuni
             'full_name' => ['required', 'string', 'max:150'],
-            'identity_number' => ['required', 'digits:16'],
-            'phone' => ['required', 'string', 'max:20'],
-            'birth_date' => ['required', 'date', 'before_or_equal:'.$this->maxBirthDate()],
+            'identity_number' => ['required', 'string'], // Diubah dari digits:16 karena bentuknya ciphertext
+            'phone' => ['required', 'string'],           // Diubah dari max:20 agar muat teks terenkripsi
+            'birth_date' => ['required', 'date', 'before_or_equal:'.$this->maxBirthDate()],      // Diubah dari date karena sudah terenkripsi
             'address' => ['nullable', 'string', 'max:500'],
             'occupation' => ['nullable', 'string', 'max:100'],
 

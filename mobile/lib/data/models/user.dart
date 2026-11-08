@@ -1,3 +1,4 @@
+import '../../data/encryption_helper.dart';
 /// Profil identitas penghuni (relasi 1:1 dengan akun user).
 class ResidentProfile {
   const ResidentProfile({
@@ -18,7 +19,9 @@ class ResidentProfile {
     return ResidentProfile(
       id: (json['id'] as num).toInt(),
       fullName: json['full_name'] as String,
-      identityNumber: json['identity_number'] as String,
+      // identityNumber: json['identity_number'] as String,
+      // >>> DEKRIPSI NIK <<<
+      identityNumber: EncryptionHelper.decryptText(json['identity_number'] as String? ?? ''),
       birthDate: json['birth_date'] as String?,
       address: json['address'] as String?,
       occupation: json['occupation'] as String?,
@@ -81,7 +84,10 @@ class User {
         email: json['email'] as String,
         role: json['role'] as String,
         status: json['status'] as String?,
-        phone: json['phone'] as String?,
+        // phone: json['phone'] as String?,
+        phone: json['phone'] != null 
+            ? EncryptionHelper.decryptText(json['phone'] as String) 
+            : null,
         resident: json['resident'] is Map<String, dynamic>
             ? ResidentProfile.fromJson(json['resident'] as Map<String, dynamic>)
             : null,
