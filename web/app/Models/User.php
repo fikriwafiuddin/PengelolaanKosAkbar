@@ -111,6 +111,18 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * No. HP — didekripsi saat dibaca bila tersimpan terenkripsi
+     * (dikirim aplikasi mobile dalam format PII1:; kunci privat di
+     * .env). Nilai lama dilewatkan apa adanya.
+     */
+    protected function phone(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::get(
+            fn ($value) => \App\Services\PiiEncryptionService::readable($value),
+        );
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

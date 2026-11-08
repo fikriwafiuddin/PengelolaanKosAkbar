@@ -22,7 +22,10 @@ Route::prefix('v1')->group(function () {
      | Endpoint publik — calon penghuni belum login pun bisa
      | melihat katalog, mencari kamar, dan mendaftar.
      */
-    Route::post('auth/register', [AuthController::class, 'register'])->name('api.v1.auth.register');
+    Route::get('auth/public-key', [AuthController::class, 'publicKey'])->name('api.v1.auth.publicKey');
+    Route::post('auth/register', [AuthController::class, 'register'])
+        ->middleware('pii.decrypt')
+        ->name('api.v1.auth.register');
     Route::post('auth/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
 
     Route::get('rooms', [RoomController::class, 'index'])->name('api.v1.rooms.index');
@@ -38,7 +41,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
         Route::get('auth/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
-        Route::put('auth/profile', [AuthController::class, 'updateProfile'])->name('api.v1.auth.profile.update');
+        Route::put('auth/profile', [AuthController::class, 'updateProfile'])
+            ->middleware('pii.decrypt')
+            ->name('api.v1.auth.profile.update');
 
         // Pemesanan kamar (Sprint 2)
         Route::get('bookings', [BookingController::class, 'index'])->name('api.v1.bookings.index');
