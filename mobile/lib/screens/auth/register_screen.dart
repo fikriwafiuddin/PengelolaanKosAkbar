@@ -5,7 +5,6 @@ import '../../data/api_client.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import 'waiting_validation_screen.dart';
-import '../../data/encryption_helper.dart';
 
 /// Registrasi calon penghuni: data akun + profil identitas + kontak
 /// penanggung jawab. Setelah berhasil, pengguna diarahkan ke halaman
@@ -87,19 +86,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // 2. Enkripsi data sensitif di balik layar sebelum dikirim ke API
-      final encryptedNik = EncryptionHelper.encryptText(_identityNumber.text.trim());
-      final encryptedPhone = EncryptionHelper.encryptText(_phone.text.trim());
-      // final encryptedBirthDate = EncryptionHelper.encryptText(_birthDate.text);
-
       await context.read<AuthProvider>().register(
             email: _email.text.trim(),
             password: _password.text,
             passwordConfirmation: _passwordConfirmation.text,
             fullName: _fullName.text.trim(),
-            identityNumber: encryptedNik,      // <- Data NIK yang sudah terenkripsi
-            phone: encryptedPhone,             // <- Data No. HP yang sudah terenkripsi
-            birthDate: _birthDate.text.trim(),     // <- Data Tanggal Lahir yang sudah terenkripsi
+            identityNumber: _identityNumber.text.trim(),
+            phone: _phone.text.trim(),
+            birthDate: _birthDate.text,
             guardianPhone: _guardianPhone.text.trim(),
             address: _address.text.trim(),
             occupation: _occupation.text.trim(),
