@@ -13,7 +13,10 @@ import 'package:firebase_core/firebase_core.dart';
 ///    dari berkas itu ke [kFirebaseOptions] di bawah, lalu hot
 ///    restart. Nilai ini tidak rahasia (sama yang ikut terbungkus
 ///    di dalam APK).
-const FirebaseOptions kFirebaseOptions = FirebaseOptions(
+// Tipe tetap nullable (FirebaseOptions?) demi fallback: set ke null
+// untuk mematikan seluruh fitur Firebase.
+// ignore: unnecessary_nullable_for_final_variable_declarations
+const FirebaseOptions? kFirebaseOptions = FirebaseOptions(
   apiKey: 'AIzaSyBUnvElXKmnH0Ve7C-ZZqeNezi5K6KExPg', // google-services.json -> api_key.current_key
   projectId: 'kost-akbar', // -> project_id
   messagingSenderId: '510120788501', // -> project_number
