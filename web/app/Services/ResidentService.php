@@ -6,6 +6,7 @@ use App\Models\Resident;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * Logika bisnis data penghuni: direktori biodata penghuni,
@@ -38,6 +39,29 @@ class ResidentService
             ))
             ->orderBy('full_name')
             ->paginate($perPage)
+            ->through(function ($resident) {
+                // 1. Cek & dekripsi NIK (jika gagal/data lama, tampilkan apa adanya)
+                try {
+                    $resident->identity_number = ($resident->identity_number && str_starts_with($resident->identity_number, 'eyJ')) 
+                        ? Crypt::decryptString($resident->identity_number) 
+                        : $resident->identity_number;
+                } catch (\Exception $e) {
+                    // Biarkan teks asli jika gagal didekripsi (data lama/non-enkripsi)
+                }
+
+                // 2. Cek & dekripsi No HP
+                if ($resident->user && $resident->user->phone) {
+                    try {
+                        $resident->user->phone = str_starts_with($resident->user->phone, 'eyJ')
+                            ? Crypt::decryptString($resident->user->phone) 
+                            : $resident->user->phone;
+                    } catch (\Exception $e) {
+                        // Biarkan teks asli
+                    }
+                }
+
+                return $resident;
+            })
             ->withQueryString();
     }
 

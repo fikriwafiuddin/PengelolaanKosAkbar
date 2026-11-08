@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\ResidentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * Profil identitas penghuni (1:1 dengan akun users).
@@ -27,14 +29,26 @@ use Illuminate\Support\Carbon;
 #[Fillable(['user_id', 'full_name', 'identity_number', 'birth_date', 'address', 'occupation', 'guardian_name', 'guardian_phone'])]
 class Resident extends Model
 {
-    /** @use HasFactory<\Database\Factories\ResidentFactory> */
+    /** @use HasFactory<ResidentFactory> */
     use HasFactory;
+    protected $appends = [
+        'identity_number',
+    ];
 
     protected function casts(): array
     {
         return [
             'birth_date' => 'date',
         ];
+    }
+
+    public function getIdentityNumberAttribute($value)
+    {
+        try {
+            return $value ? Crypt::decryptString($value) : $value;
+        } catch (\Exception $e) {
+            return $value; // Jika belum terenkripsi, tampilkan aslinya
+        }
     }
 
     /**
