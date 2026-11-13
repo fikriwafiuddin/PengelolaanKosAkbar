@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../data/api_client.dart';
+import '../data/services/push_service.dart';
 import '../theme/app_theme.dart';
 import 'billing/invoices_screen.dart';
 import 'chat/chat_rooms_screen.dart';
@@ -17,6 +20,20 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Coba daftarkan ulang token FCM saat shell terbuka — menutupi
+    // kasus backend sempat tidak aktif saat login (no-op bila
+    // Firebase nonaktif; idempoten bila sudah terdaftar).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        PushService.activate(context.read<ApiClient>());
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

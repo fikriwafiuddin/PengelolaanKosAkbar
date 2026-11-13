@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "510120788501",
+    "project_id": "kost-akbar",
+    "storage_bucket": "kost-akbar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:510120788501:android:e67b0d1fdc7b61b5e3c41c",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUnvElXKmnH0Ve7C-ZZqeNezi5K6KExPg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

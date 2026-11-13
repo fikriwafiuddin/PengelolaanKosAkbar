@@ -6,12 +6,21 @@ plugins {
 
 android {
     namespace = "com.example.mobile"
-    compileSdk = flutter.compileSdkVersion
+
+    // flutter_local_notifications 23.x butuh compileSdk >= 37; API 37
+    // hanya tersedia sebagai platform minor-versioned (37.0) sehingga
+    // wajib menyertakan compileSdkMinor (AGP >= 9.1.0). Lihat catatan
+    // serupa di android/build.gradle.kts.
+    compileSdk = 37
+    compileSdkMinor = 0
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Wajib untuk flutter_local_notifications >= 10 (dukung
+        // notifikasi terjadwal di Android lama).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -42,6 +51,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {
