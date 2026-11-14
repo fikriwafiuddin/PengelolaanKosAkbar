@@ -38,6 +38,8 @@ class RegisterRequest extends FormRequest
             'password' => ['required', 'string', 'min:8', 'confirmed'],
 
             // Profil identitas penghuni
+            // (nilai PII dari mobile sudah didekripsi middleware
+            // pii.decrypt sebelum validasi — aturan asli tetap berlaku)
             'full_name' => ['required', 'string', 'max:150'],
             'identity_number' => ['required', 'digits:16'],
             'phone' => ['required', 'string', 'max:20'],

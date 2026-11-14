@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   cupertino_icons: ^1.0.8
 
   # Koneksi ke REST API Laravel
@@ -28,7 +27,11 @@ dependencies:
   firebase_core: ^5.1.0
   firebase_messaging: ^17.0.1
   cloud_firestore: ^7.1.0
+<<<<<<< HEAD
   flutter_local_notifications: ^23.0.0
+=======
+  pointycastle: ^4.0.0
+>>>>>>> fitur-encrypt-decrypt
 
 dev_dependencies:
   flutter_test:

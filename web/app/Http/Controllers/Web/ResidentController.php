@@ -17,8 +17,7 @@ use Inertia\Response;
  */
 class ResidentController extends Controller
 {
-    public function __construct(private readonly ResidentService $residents)
-    {}
+    public function __construct(private readonly ResidentService $residents) {}
 
     /**
      * GET /residents — halaman Data Penghuni (biodata).

@@ -8,6 +8,7 @@ use App\Http\Requests\Api\ProfileUpdateRequest;
 use App\Http\Requests\Api\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
+use App\Services\PiiEncryptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,14 +22,41 @@ class AuthController extends Controller
     {}
 
     /**
+     * GET /api/v1/auth/public-key — kunci publik RSA untuk fitur
+     * enkripsi data pribadi di aplikasi mobile (SPKI DER base64).
+     */
+    public function publicKey(): JsonResponse
+    {
+        $key = PiiEncryptionService::publicKeyDer();
+
+        abort_if($key === null, 503, 'Kunci enkripsi belum dikonfigurasi di server.');
+
+        return response()->json([
+            'data' => [
+                'public_key' => $key,
+                // Field yang wajib dienkripsi aplikasi mobile.
+                'fields' => PiiEncryptionService::FIELDS,
+                'format' => 'PII1:<base64(RSA-OAEP-SHA1(aes_key+nonce))>.<base64(AES-256-GCM ct+tag)>',
+            ],
+        ]);
+    }
+
+    /**
      * POST /api/v1/auth/register — registrasi calon penghuni.
      *
      * Akun berstatus menunggu_validasi dan belum dapat login
      * sampai disetujui admin (tidak ada token yang diterbitkan).
+     *
+     * Field PII yang datang terenkripsi (PII1:) sudah didekripsi
+     * middleware pii.decrypt untuk validasi; teks tersandi aslinya
+     * digabung kembali di sini agar database menyimpan bentuk
+     * terenkripsi.
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        $user = $this->auth->register($request->validated());
+        $user = $this->auth->register(
+            PiiEncryptionService::mergeCiphertext($request, $request->validated()),
+        );
 
         return response()->json([
             'message' => 'Registrasi berhasil. Akun Anda menunggu validasi admin sebelum dapat digunakan untuk login.',
@@ -79,10 +107,16 @@ class AuthController extends Controller
 
     /**
      * PUT /api/v1/auth/profile — perbarui profil penghuni.
+     *
+     * Sama seperti register: field PII tervalidasi dalam bentuk
+     * terdekripsi, disimpan dalam bentuk terenkripsi.
      */
     public function updateProfile(ProfileUpdateRequest $request): JsonResponse
     {
-        $user = $this->auth->updateProfile($request->user(), $request->validated());
+        $user = $this->auth->updateProfile(
+            $request->user(),
+            PiiEncryptionService::mergeCiphertext($request, $request->validated()),
+        );
 
         return response()->json([
             'message' => 'Profil berhasil diperbarui.',

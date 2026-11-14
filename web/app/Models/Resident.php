@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\PiiEncryptionService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +13,13 @@ use Illuminate\Support\Carbon;
 
 /**
  * Profil identitas penghuni (1:1 dengan akun users).
+ *
+ * Kolom data pribadi (identity_number, address, guardian_name,
+ * guardian_phone) dapat menyimpan teks tersandi PII1: dari aplikasi
+ * mobile — accessor di bawah menDEKRIPSI-nya secara otomatis saat
+ * nilai DITAMPILKAN (profil mobile & dashboard web) memakai kunci
+ * privat di .env. Nilai lama yang belum terenkripsi dilewatkan apa
+ * adanya.
  *
  * @property int $id
  * @property int $user_id
@@ -35,6 +44,46 @@ class Resident extends Model
         return [
             'birth_date' => 'date',
         ];
+    }
+
+    /**
+     * NIK — didekripsi saat dibaca (bila tersimpan terenkripsi).
+     */
+    protected function identityNumber(): Attribute
+    {
+        return Attribute::get(
+            fn ($value) => PiiEncryptionService::readable($value),
+        );
+    }
+
+    /**
+     * Alamat — didekripsi saat dibaca (bila tersimpan terenkripsi).
+     */
+    protected function address(): Attribute
+    {
+        return Attribute::get(
+            fn ($value) => PiiEncryptionService::readable($value),
+        );
+    }
+
+    /**
+     * Nama penanggung jawab — didekripsi saat dibaca.
+     */
+    protected function guardianName(): Attribute
+    {
+        return Attribute::get(
+            fn ($value) => PiiEncryptionService::readable($value),
+        );
+    }
+
+    /**
+     * No. HP penanggung jawab — didekripsi saat dibaca.
+     */
+    protected function guardianPhone(): Attribute
+    {
+        return Attribute::get(
+            fn ($value) => PiiEncryptionService::readable($value),
+        );
     }
 
     /**
