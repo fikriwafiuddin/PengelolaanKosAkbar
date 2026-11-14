@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 
+const Duration kDemoUploadDelay = Duration(milliseconds: 60);
+
 /// Exception standar untuk semua kesalahan pemanggilan API.
 class ApiException implements Exception {
   const ApiException(this.message, {this.errors = const {}, this.statusCode});
@@ -20,6 +22,42 @@ class ApiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// MultipartRequest yang melaporkan jumlah byte yang sudah terkirim.
+class _ProgressMultipartRequest extends http.MultipartRequest {
+  _ProgressMultipartRequest(super.method, super.url, {this.onProgress});
+
+  final void Function(int terkirim, int total)? onProgress;
+
+  @override
+http.ByteStream finalize() {
+  final stream = super.finalize();
+  if (onProgress == null) return stream;
+
+  final total = contentLength;
+  final ukuran = total ~/ 50 + 1; // 50 potongan = naik sekitar 2% per langkah
+  var terkirim = 0;
+
+  Stream<List<int>> potong() async* {
+    await for (final data in stream) {
+      for (var i = 0; i < data.length; i += ukuran) {
+        final akhir = i + ukuran < data.length ? i + ukuran : data.length;
+        final bagian = data.sublist(i, akhir);
+
+        if (kDemoUploadDelay > Duration.zero) {
+          await Future.delayed(kDemoUploadDelay);
+        }
+
+        terkirim += bagian.length;
+        onProgress!(terkirim, total);
+        yield bagian;
+      }
+    }
+  }
+
+  return http.ByteStream(potong());
+  }
 }
 
 /// Pembungkus `http` untuk REST API Kost Akbar:
@@ -117,9 +155,18 @@ class ApiClient {
     Map<String, String> fields = const {},
     String? fileField,
     String? filePath,
+    void Function(double persen)? onProgress,        // baru
   }) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path');
-    final request = http.MultipartRequest('POST', uri)
+    final request = _ProgressMultipartRequest(       // diganti
+      'POST',
+      uri,
+      onProgress: onProgress == null
+          ? null
+          : (terkirim, total) {
+              if (total > 0) onProgress(terkirim / total);
+            },
+    )
       ..headers.addAll(_headers)
       ..fields.addAll(fields);
 

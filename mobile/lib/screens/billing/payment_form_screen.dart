@@ -10,9 +10,19 @@ import '../../data/models/invoice.dart';
 import '../../data/models/payment.dart';
 import '../../data/services/payment_service.dart';
 import '../../theme/app_theme.dart';
+import 'dart:isolate';
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
+import 'package:flutter/foundation.dart';
 
 /// Form kirim pembayaran sewa: input nominal, pilih metode
 /// (transfer/tunai), dan unggah bukti bayar (wajib untuk transfer).
+Uint8List _kompresBukti(Uint8List bytes) {
+  final asli = img.decodeImage(bytes);
+  if (asli == null) return bytes;
+  final hasil = asli.width > 1280 ? img.copyResize(asli, width: 1280) : asli;
+  return Uint8List.fromList(img.encodeJpg(hasil, quality: 75));
+}
 class PaymentFormScreen extends StatefulWidget {
   const PaymentFormScreen({super.key, required this.invoice});
 
@@ -28,6 +38,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
   PaymentMethod _method = PaymentMethod.transfer;
   String? _proofPath;
   bool _submitting = false;
+  double _persen = 0;
 
   @override
   void initState() {
@@ -77,14 +88,34 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
       return;
     }
 
-    setState(() => _submitting = true);
+    // 
+    setState(() {
+      _submitting = true;
+      _persen = 0;
+    });
 
     try {
+      // Kompres foto di isolate (thread terpisah) supaya UI tidak macet
+      String? pathKirim = _proofPath;
+      if (pathKirim != null) {
+        final mentah = await File(pathKirim).readAsBytes();
+     //   final kecil = await Isolate.run(() => _kompresBukti(mentah));
+        final kecil = await compute(_kompresBukti, mentah);
+        final tmp = File(
+          '${Directory.systemTemp.path}/bukti_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+        await tmp.writeAsBytes(kecil);
+        pathKirim = tmp.path;
+      }
+
       await _payments.submit(
         invoiceId: widget.invoice.id,
         amount: amount,
         method: _method,
-        proofPath: _proofPath,
+        proofPath: pathKirim,
+        onProgress: (p) {
+          if (mounted) setState(() => _persen = p);
+        },
       );
 
       if (!mounted) return;
@@ -98,6 +129,8 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
     } on ApiException catch (e) {
       _showError(e.errors.values.expand((messages) => messages).firstOrNull ??
           e.message);
+    } catch (e) {
+      _showError('Gagal memproses pembayaran: $e');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -331,6 +364,37 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            if (_submitting && _proofPath != null) ...[
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: _persen),
+                duration: const Duration(milliseconds: 200),
+                builder: (_, nilai, _) => Column(
+                  children: [
+                    LinearProgressIndicator(value: nilai, minHeight: 10),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${(nilai * 100).toInt()}%',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // const SizedBox(height: 8),
+              // Center(
+              //   child: Text(
+              //     '${(_persen * 100).toInt()}%',
+              //     style: const TextStyle(
+              //       fontWeight: FontWeight.w700,
+              //       color: AppColors.textDark,
+              //     ),
+              //   ),
+              // ),
+              const SizedBox(height: 16),
+            ],
 
             SizedBox(
               width: double.infinity,

@@ -16,6 +16,7 @@ class PaymentService {
     required double amount,
     required PaymentMethod method,
     String? proofPath,
+    void Function(double persen)? onProgress,
   }) async {
     final json = await _client.postMultipart(
       '/api/v1/invoices/$invoiceId/payments',
@@ -27,6 +28,7 @@ class PaymentService {
       },
       fileField: proofPath != null ? 'proof' : null,
       filePath: proofPath,
+      onProgress: onProgress,
     ) as Map<String, dynamic>;
 
     return Payment.fromJson(json['data'] as Map<String, dynamic>);
