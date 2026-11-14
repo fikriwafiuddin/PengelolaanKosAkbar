@@ -34,6 +34,12 @@ class PiiEncryptionService
     public const MARKER = 'PII1:';
 
     /**
+     * Kunci & IV untuk data legacy hasil percobaan enkripsi lama di APK (AES-128-CBC).
+     */
+    private const LEGACY_AES_KEY = 'Qwertyui87651234';
+    private const LEGACY_AES_IV  = '1234567890123456';
+
+    /**
      * Field yang dienkripsi aplikasi mobile (nama sama di request
      * maupun kolom database).
      */
@@ -44,6 +50,96 @@ class PiiEncryptionService
         'guardian_name',
         'guardian_phone',
     ];
+
+    /**
+     * Enkripsi satu nilai teks biasa ke format PII1 memakai kunci publik RSA.
+     */
+    public static function encrypt(string $plain): ?string
+    {
+        $base64 = Config::get('encryption.public_key');
+
+        if (! $base64) {
+            return null;
+        }
+
+        $pem = base64_decode((string) $base64, true);
+
+        if ($pem === false) {
+            return null;
+        }
+
+        $publicKey = openssl_pkey_get_public($pem);
+
+        if (! $publicKey) {
+            return null;
+        }
+
+        try {
+            $aesKey = random_bytes(32);
+            $nonce = random_bytes(12);
+            $tag = '';
+            $ciphertext = openssl_encrypt($plain, 'aes-256-gcm', $aesKey, OPENSSL_RAW_DATA, $nonce, $tag);
+
+            if ($ciphertext === false) {
+                return null;
+            }
+
+            $payload = $ciphertext . $tag;
+            $keymat = $aesKey . $nonce;
+
+            if (! openssl_public_encrypt($keymat, $envelope, $publicKey, OPENSSL_PKCS1_OAEP_PADDING)) {
+                return null;
+            }
+
+            return self::MARKER . base64_encode($envelope) . '.' . base64_encode($payload);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Coba dekripsi teks lama (kompatibilitas percobaan sebelumnya):
+     * 1. Laravel Crypt (format JSON base64 eyJ...)
+     * 2. AES-128-CBC mobile lama (kunci 'Qwertyui87651234', IV '1234567890123456')
+     */
+    public static function decryptLegacy(?string $value): ?string
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        // 1. Cek format Laravel Crypt (eyJ...)
+        if (str_starts_with($value, 'eyJ')) {
+            try {
+                return \Illuminate\Support\Facades\Crypt::decryptString($value);
+            } catch (\Throwable) {
+                // Abaikan jika bukan format Crypt valid
+            }
+        }
+
+        // 2. Cek format AES-128-CBC mobile lama (base64 tanpa spasi kelipatan 16 byte)
+        if (strlen($value) >= 24 && preg_match('/^[A-Za-z0-9+\/]+={0,2}$/', $value)) {
+            try {
+                $raw = base64_decode($value, true);
+                if ($raw !== false && strlen($raw) % 16 === 0) {
+                    $plain = openssl_decrypt(
+                        $raw,
+                        'aes-128-cbc',
+                        self::LEGACY_AES_KEY,
+                        OPENSSL_RAW_DATA,
+                        self::LEGACY_AES_IV
+                    );
+                    if ($plain !== false && preg_match('/^[\x20-\x7E]+$/', $plain)) {
+                        return $plain;
+                    }
+                }
+            } catch (\Throwable) {
+                // Abaikan
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Apakah kunci privat terpasang (fitur enkripsi aktif).
@@ -157,11 +253,21 @@ class PiiEncryptionService
      */
     public static function readable(mixed $value): mixed
     {
-        if (! self::isEncrypted($value)) {
+        if (! is_string($value) || $value === '') {
             return $value;
         }
 
-        return self::decrypt($value) ?? '[terenkripsi — kunci tidak cocok]';
+        if (self::isEncrypted($value)) {
+            return self::decrypt($value) ?? '[terenkripsi — kunci tidak cocok]';
+        }
+
+        // Coba dekripsi format legacy (Laravel Crypt atau APK lama AES-128-CBC)
+        $legacy = self::decryptLegacy($value);
+        if ($legacy !== null) {
+            return $legacy;
+        }
+
+        return $value;
     }
 
     /**
@@ -190,6 +296,11 @@ class PiiEncryptionService
                     $data[$field] = $plain;
                     $ciphertext[$field] = $value;
                 }
+            } elseif (is_string($value) && ($legacy = self::decryptLegacy($value)) !== null) {
+                // Kompatibilitas jika client masih mengirim format legacy
+                $data[$field] = $legacy;
+                // Re-enkripsi ke format PII1 standar sebelum disimpan
+                $ciphertext[$field] = self::encrypt($legacy) ?? $value;
             }
         }
 

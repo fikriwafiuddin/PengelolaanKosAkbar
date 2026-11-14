@@ -40,7 +40,9 @@ class PiiEncryptionService {
       _cachedPublicKeyDer = der;
 
       return _cachedPublicKeyDer;
-    } catch (_) {
+    } catch (e) {
+      // ignore: avoid_print
+      print('PiiEncryptionService: gagal mengambil kunci publik: $e');
       return null;
     }
   }
