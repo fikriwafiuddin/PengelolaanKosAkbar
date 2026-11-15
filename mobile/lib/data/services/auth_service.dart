@@ -1,6 +1,7 @@
 import '../api_client.dart';
 import '../models/user.dart';
 import 'pii_encryption_service.dart';
+import 'registration_firestore_service.dart';
 
 /// Autentikasi: registrasi, login, logout, dan profil.
 ///
@@ -13,6 +14,8 @@ class AuthService {
 
   final ApiClient _client;
   late final PiiEncryptionService _pii = PiiEncryptionService(_client);
+  late final RegistrationFirestoreService _firestoreMirror =
+      RegistrationFirestoreService();
 
   /// Login dengan email + password, mengembalikan user + token.
   Future<({User user, String token})> login({
@@ -34,8 +37,11 @@ class AuthService {
 
   /// Registrasi calon penghuni: akun + profil identitas sekaligus.
   ///
-  /// Akun baru berstatus menunggu_validasi — TIDAK menerima token;
-  /// pengguna hanya bisa login setelah admin menyetujui akunnya.
+  /// Data dikirim PARALEL ke dua tujuan: API Laravel (MySQL — sumber
+  /// kebenaran) dan mirror Firestore (fail-safe, lihat
+  /// [RegistrationFirestoreService]). Akun baru berstatus
+  /// menunggu_validasi — TIDAK menerima token; pengguna hanya bisa
+  /// login setelah admin menyetujui akunnya.
   Future<User> register({
     required String email,
     required String password,
@@ -50,7 +56,8 @@ class AuthService {
     String? guardianName,
   }) async {
     // Enkripsi data pribadi dengan kunci publik server (fallback
-    // plaintext bila server belum mengaktifkan enkripsi).
+    // plaintext bila server belum mengaktifkan enkripsi). Enkripsi
+    // berjalan di isolate terpisah — tidak membebani UI thread.
     final pii = await _pii.encryptFields({
       'identity_number': identityNumber,
       'phone': phone,
@@ -59,7 +66,10 @@ class AuthService {
       'guardian_phone': guardianPhone,
     });
 
-    final json = await _client.post('/api/v1/auth/register', body: {
+    // Dua pengiriman berjalan PARALEL: kedua future dibuat dulu
+    // (sehingga sama-sama berjalan) sebelum di-await. Mirror memakai
+    // doc id deterministik (email) jadi tidak butuh respons API.
+    final apiCall = _client.post('/api/v1/auth/register', body: {
       'email': email,
       'password': password,
       'password_confirmation': passwordConfirmation,
@@ -72,11 +82,32 @@ class AuthService {
       if (guardianName != null && guardianName.isNotEmpty)
         'guardian_name': pii['guardian_name'],
       'guardian_phone': pii['guardian_phone'],
-    }) as Map<String, dynamic>;
+    });
+    final mirrorCall = _firestoreMirror.mirrorRegistration(
+      email: email,
+      fullName: fullName,
+      birthDate: birthDate,
+      occupation: occupation,
+      pii: pii,
+    );
 
-    final data = json['data'] as Map<String, dynamic>;
+    try {
+      final json = await apiCall as Map<String, dynamic>;
+      // Pastikan keduanya selesai sebelum kembali (mirror tidak
+      // pernah melempar exception — kegagalannya hanya tercatat log).
+      await mirrorCall;
 
-    return User.fromJson(data['user'] as Map<String, dynamic>);
+      final data = json['data'] as Map<String, dynamic>;
+
+      return User.fromJson(data['user'] as Map<String, dynamic>);
+    } catch (_) {
+      // Backend menolak (mis. email duplikat 422) / jaringan gagal:
+      // bersihkan mirror best-effort agar Firestore tidak menyimpan
+      // data hantu, lalu teruskan errornya ke pemanggil (UI tetap
+      // menampilkan pesan validasi seperti biasa).
+      await _firestoreMirror.deleteMirror(email);
+      rethrow;
+    }
   }
 
   /// Profil user yang sedang login (akun + identitas + kamar disewa).

@@ -6,6 +6,7 @@ Integrasi Firebase bersifat **opsional dengan fallback otomatis**:
 |---|---|---|
 | Notifikasi reminder / chat / verifikasi | tersimpan di database (badge lonceng di aplikasi) | + **push notification FCM** — muncul sebagai notifikasi sistem walau aplikasi tertutup |
 | Chat | polling tiap 4 detik | **realtime Firestore** — pesan muncul instan |
+| Registrasi | data hanya di MySQL (sumber kebenaran) | + **salinan registrasi di Firestore** — ditulis mobile paralel dengan API, PII tetap ciphertext |
 
 MySQL (Laravel) tetap satu-satunya sumber kebenaran: pesan dikirim lewat API Laravel, server menyalinannya (dual-write) ke Firestore, lalu aplikasi mobile menerima update lewat stream Firestore.
 
@@ -59,6 +60,20 @@ service cloud.firestore {
     match /chatRooms/{roomId}/messages/{messageId} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Salinan registrasi: ditulis aplikasi mobile secara paralel
+    // dengan API Laravel (belum login saat mendaftar, jadi tulisnya
+    // terbuka tapi fieldnya dibatasi). PII hanya berupa ciphertext
+    // PII1:...; password tidak pernah disalin. Dihapus mobile saat
+    // API menolak registrasi (mis. email duplikat).
+    match /registrations/{docId} {
+      allow read: if false;
+      allow create, update: if request.resource.data.keys().hasOnly(
+        ['email', 'full_name', 'birth_date', 'occupation', 'status',
+         'identity_number', 'phone', 'address', 'guardian_name',
+         'guardian_phone', 'created_at']);
+      allow delete: if true;
     }
   }
 }
@@ -126,6 +141,20 @@ chatRooms (collection)
                 senderName    string
                 senderRole    string
                 sentAt        timestamp
+
+registrations (collection)           — salinan registrasi (dual-write
+ └── {email}                          paralel dari mobile; MySQL tetap
+                email             string   sumber kebenaran)
+                full_name         string
+                birth_date        string   (yyyy-MM-dd)
+                occupation        string?  (opsional)
+                status            string   = 'menunggu_validasi'
+                identity_number   string   ciphertext PII1:...
+                phone             string   ciphertext PII1:...
+                address           string?  ciphertext PII1:...
+                guardian_name     string?  ciphertext PII1:...
+                guardian_phone    string   ciphertext PII1:...
+                created_at        timestamp (server)
 ```
 
 ## Catatan

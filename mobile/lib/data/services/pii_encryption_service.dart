@@ -1,8 +1,22 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import '../api_client.dart';
 import '../pii_crypto.dart';
+
+/// Enkripsi banyak field PII sekaligus di isolate terpisah (compute)
+/// agar RSA-OAEP + AES-GCM pointycastle tidak membebani UI thread.
+/// Harus top-level: compute() tidak menerima closure/metode instance.
+Map<String, String> _sealPiiFields(Map<String, dynamic> args) {
+  final publicKey = args['publicKey'] as Uint8List;
+  final fields = args['fields'] as Map<String, String>;
+
+  return {
+    for (final entry in fields.entries)
+      entry.key: entry.value.isEmpty ? entry.value : sealPii(entry.value, publicKey),
+  };
+}
 
 /// Enkripsi data pribadi (PII) sisi aplikasi mobile — SATU-SATUNYA
 /// pihak yang mengenkripsi. Kripto murninya ada di pii_crypto.dart.
@@ -10,7 +24,8 @@ import '../pii_crypto.dart';
 /// Kunci publik RSA diambil dari GET /api/v1/auth/public-key
 /// (sekali per sesi, di-cache). Hanya backend — pemegang kunci
 /// PRIVAT di .env — yang bisa membuka: dipakai saat validasi &
-/// menampilkan data ke pengguna.
+/// menampilkan data ke pengguna. Proses enkripsi sendiri berjalan
+/// di isolate terpisah (compute) agar UI thread tidak tersendat.
 ///
 /// Jika kunci publik belum bisa diambil (server belum menjalankan
 /// `php artisan encryption:generate`, offline, dsb.) nilai dikirim
@@ -49,18 +64,20 @@ class PiiEncryptionService {
 
   /// Enkripsi field PII yang diberikan. Nilai kosong/null dilewatkan.
   /// Gagal total -> mengembalikan map asli (fallback plaintext).
+  ///
+  /// Penguncian tiap field (RSA-OAEP + AES-GCM) dijalankan di isolate
+  /// terpisah lewat compute() — UI thread tetap responsif.
   Future<Map<String, String>> encryptFields(Map<String, String?> fields) async {
     final publicKey = await _publicKey();
+    final normalized = fields.map((key, value) => MapEntry(key, value ?? ''));
 
     if (publicKey == null) {
-      return fields.map((key, value) => MapEntry(key, value ?? ''));
+      return normalized;
     }
 
-    return {
-      for (final entry in fields.entries)
-        entry.key: (entry.value == null || entry.value!.isEmpty)
-            ? (entry.value ?? '')
-            : sealPii(entry.value!, publicKey),
-    };
+    return compute(
+      _sealPiiFields,
+      {'publicKey': publicKey, 'fields': normalized},
+    );
   }
 }
