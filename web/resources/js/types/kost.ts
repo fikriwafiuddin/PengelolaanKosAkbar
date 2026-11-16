@@ -75,6 +75,9 @@ export type ResidentStats = {
     lunas: number;
     menunggu_verifikasi: number;
     belum_bayar: number;
+    calon_penghuni: number;
+    pending_validation: number;
+    sudah_keluar: number;
 };
 
 export type PaymentStatus = 'pending' | 'terverifikasi' | 'ditolak';
@@ -83,11 +86,14 @@ export type ChatRoomSummary = {
     id: number;
     name: string;
     description: string | null;
+    is_complaint_room?: boolean;
     members_count: number;
     unread_count: number;
     last_message: {
         body: string;
         is_announcement: boolean;
+        is_complaint?: boolean;
+        complaint_category?: string | null;
         sender_name: string | null;
         sent_at_formatted: string | null;
     } | null;
@@ -98,6 +104,9 @@ export type ChatMessage = {
     chat_room_id: number;
     body: string;
     is_announcement: boolean;
+    is_complaint?: boolean;
+    complaint_category?: string | null;
+    complaint_status?: 'menunggu_tanggapan' | 'diproses' | 'selesai' | null;
     sent_at: string | null;
     sent_at_formatted: string | null;
     is_own: boolean;
@@ -105,6 +114,7 @@ export type ChatMessage = {
         id: number;
         name: string | null;
         role: string;
+        room_number?: string | null;
     } | null;
 };
 
@@ -154,4 +164,30 @@ export type Pagination<T> = {
     total: number;
     from: number | null;
     to: number | null;
+};
+
+/**
+ * Satu titik tren keuangan bulanan (dashboard + laporan keuangan) — Rev-3.
+ */
+export type TrendPoint = {
+    month: string;
+    month_label: string;
+    income: number;
+    expense: number;
+    profit: number;
+};
+
+/**
+ * Tagihan yang sudah melewati jatuh tempo tapi belum dibayar — Rev-4.
+ */
+export type OverdueUnpaid = {
+    invoice_id: number;
+    resident_name: string;
+    room_number: string;
+    period: string;
+    period_label: string;
+    amount: number;
+    amount_formatted: string;
+    due_date: string;
+    due_date_formatted: string;
 };

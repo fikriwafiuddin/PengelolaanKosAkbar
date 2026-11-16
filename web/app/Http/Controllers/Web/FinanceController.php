@@ -25,24 +25,39 @@ class FinanceController extends Controller
 
     /**
      * GET /finance?month=YYYY-MM — halaman Laporan Keuangan.
+     * Menampilkan ringkasan kas, tren 6 bulan, dan laporan pembayaran sewa.
      */
     public function index(Request $request): Response
     {
         $month = $this->resolveMonth($request->query('month'));
 
         return Inertia::render('finance/index', [
-            'month' => $month,
-            'summary' => $this->finance->summary($month),
-            'months' => $this->finance->availableMonths(),
-            'trend' => $this->finance->trend($month),
+            'month'         => $month,
+            'summary'       => $this->finance->summary($month),
+            'months'        => $this->finance->availableMonths(),
+            'trend'         => $this->finance->trend($month),
             'paymentReport' => $this->finance->paymentReport($month),
-            'expenseByCategory' => $this->finance->expenseByCategory($month),
-            'expenses' => $this->expensesWithLabels($month),
         ]);
     }
 
     /**
-     * POST /finance/expenses — catat pengeluaran operasional.
+     * GET /expenses?month=YYYY-MM — halaman Pengeluaran Operasional (Rev-2).
+     */
+    public function expenseIndex(Request $request): Response
+    {
+        $month = $this->resolveMonth($request->query('month'));
+
+        return Inertia::render('expenses/index', [
+            'month'             => $month,
+            'summary'           => $this->finance->summary($month),
+            'months'            => $this->finance->availableMonths(),
+            'expenseByCategory' => $this->finance->expenseByCategory($month),
+            'expenses'          => $this->expensesWithLabels($month),
+        ]);
+    }
+
+    /**
+     * POST /expenses — catat pengeluaran operasional.
      */
     public function storeExpense(StoreExpenseRequest $request): RedirectResponse
     {
@@ -52,7 +67,7 @@ class FinanceController extends Controller
     }
 
     /**
-     * DELETE /finance/expenses/{expense} — hapus catatan pengeluaran.
+     * DELETE /expenses/{expense} — hapus catatan pengeluaran.
      */
     public function destroyExpense(Request $request, Expense $expense): RedirectResponse
     {

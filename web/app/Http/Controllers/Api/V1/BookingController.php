@@ -40,4 +40,14 @@ class BookingController extends Controller
             ->response()
             ->setStatusCode(201);
     }
+
+    public function leave(Request $request, Booking $booking): JsonResponse
+    {
+        $booking = $this->bookings->leave($booking, $request->user());
+
+        return response()->json([
+            'message' => 'Anda telah keluar dari kost.',
+            'data' => $booking,   // SESUAIKAN: pakai BookingResource kalau sudah ada
+        ]);
+    }
 }

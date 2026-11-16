@@ -16,10 +16,13 @@ use Illuminate\Support\Carbon;
  * @property int $user_id
  * @property string $body
  * @property bool $is_announcement
+ * @property bool $is_complaint
+ * @property string|null $complaint_category
+ * @property string|null $complaint_status
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['chat_room_id', 'user_id', 'body', 'is_announcement'])]
+#[Fillable(['chat_room_id', 'user_id', 'body', 'is_announcement', 'is_complaint', 'complaint_category', 'complaint_status'])]
 class Message extends Model
 {
     /** @use HasFactory<\Database\Factories\MessageFactory> */
@@ -29,6 +32,7 @@ class Message extends Model
     {
         return [
             'is_announcement' => 'boolean',
+            'is_complaint' => 'boolean',
         ];
     }
 

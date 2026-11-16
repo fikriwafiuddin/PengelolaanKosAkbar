@@ -35,4 +35,8 @@ class BookingService {
 
     return Booking.fromJson(json['data'] as Map<String, dynamic>);
   }
+
+  Future<void> leave(int bookingId) async {
+    await _client.post('/api/v1/bookings/$bookingId/leave');
+  }
 }

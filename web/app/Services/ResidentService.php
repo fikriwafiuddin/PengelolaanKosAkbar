@@ -84,12 +84,27 @@ class ResidentService
         return $invoice->status === 'lunas' ? 'lunas' : 'belum_bayar';
     }
 
+    private function validatedResidents(): Builder
+    {
+        return Resident::query()->whereHas(
+            'user',
+            fn (Builder $u) => $u->where('status', 'aktif'),
+        );
+    }
+
+
     /**
      * Statistik penghuni untuk kartu ringkasan dashboard admin.
+     *
+     * Mencakup:
+     * - total        : penghuni aktif (punya booking aktif)
+     * - lunas/menunggu_verifikasi/belum_bayar : status pembayaran bulan ini
+     * - pending_validation : calon penghuni (menunggu_validasi admin) — Rev-5
+     * - sudah_keluar : penghuni yang sudah selesai sewa (tidak ada booking aktif) — Rev-5
      */
     public function stats(): array
     {
-        $residents = Resident::query()
+        $residents = $this->validatedResidents()
             ->with(['activeBooking.invoices.payments'])
             ->has('activeBooking')
             ->get();
@@ -102,11 +117,31 @@ class ResidentService
             }
         }
 
+        // Calon penghuni: divalidasi, belum pernah punya sewa aktif maupun selesai
+        $calonPenghuni = $this->validatedResidents()
+            ->whereDoesntHave('bookings', fn ($q) => $q->whereIn('status', ['aktif', 'selesai']))
+            ->count();
+
+        // Sudah keluar: pernah sewa selesai, sekarang tidak punya sewa aktif
+        $sudahKeluar = $this->validatedResidents()
+            ->whereHas('bookings', fn ($q) => $q->where('status', 'selesai'))
+            ->whereDoesntHave('bookings', fn ($q) => $q->where('status', 'aktif'))
+            ->count();
+
+        // Akun menunggu validasi (tidak dihitung sebagai penghuni apa pun)
+        $pendingValidation = User::query()
+            ->where('role', 'penghuni')
+            ->where('status', 'menunggu_validasi')
+            ->count();
+
         return [
-            'total' => $residents->count(),
-            'lunas' => $counts['lunas'],
+            'total'               => $residents->count(),
+            'lunas'               => $counts['lunas'],
             'menunggu_verifikasi' => $counts['menunggu_verifikasi'],
-            'belum_bayar' => $counts['belum_bayar'],
+            'belum_bayar'         => $counts['belum_bayar'],
+            'calon_penghuni'      => $calonPenghuni,
+            'sudah_keluar'        => $sudahKeluar,
+            'pending_validation'  => $pendingValidation,
         ];
     }
 }

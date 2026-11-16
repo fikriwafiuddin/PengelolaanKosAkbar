@@ -128,4 +128,40 @@ class BookingService
             ]);
         }
     }
+
+    public function leave(Booking $booking, User $user): Booking
+    {
+        // hanya pemilik sewa yang boleh mengakhiri sewanya
+        abort_unless($booking->resident?->user_id === $user->id, 403, 'Anda tidak berhak mengakhiri sewa ini.');
+
+        if ($booking->status !== 'aktif') {
+            throw ValidationException::withMessages([
+                'booking' => 'Sewa ini sudah tidak aktif.',
+            ]);
+        }
+
+        // Aturan: tagihan harus lunas dulu (hapus blok ini kalau tidak diinginkan)
+        $adaTunggakan = $booking->invoices()->where('status', '!=', 'lunas')->exists();
+        if ($adaTunggakan) {
+            throw ValidationException::withMessages([
+                'booking' => 'Lunasi tagihan yang belum dibayar sebelum keluar dari kost.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($booking) {
+            $booking->update(['status' => 'selesai']);
+
+            // Kamar bisa dihuni lebih dari satu orang (mis. kamar 27)
+            $masihDihuni = Booking::where('room_id', $booking->room_id)   // SESUAIKAN nama kolom
+                ->where('status', 'aktif')
+                ->where('id', '!=', $booking->id)
+                ->exists();
+
+            if (! $masihDihuni) {
+                $booking->room()->update(['status' => 'kosong']);
+            }
+
+            return $booking->fresh(['room']);
+        });
+    }
 }

@@ -46,10 +46,22 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::post('chat/rooms/{room}/messages', [ChatController::class, 'storeMessage'])
         ->whereNumber('room')
         ->name('chat.messages.store');
+    Route::put('chat/messages/{message}/complaint-status', [ChatController::class, 'updateComplaintStatus'])
+        ->whereNumber('message')
+        ->name('chat.messages.complaint-status');
 
-    // Laporan keuangan: rekap kas, pengeluaran, laba + ekspor (Sprint 4)
+    // Laporan keuangan: rekap kas, laba + ekspor (Sprint 4)
     Route::get('finance', [FinanceController::class, 'index'])->name('finance.index');
     Route::get('finance/export', [FinanceController::class, 'export'])->name('finance.export');
+
+    // Pengeluaran operasional: halaman sendiri (Rev-2)
+    Route::get('expenses', [FinanceController::class, 'expenseIndex'])->name('expenses.index');
+    Route::post('expenses', [FinanceController::class, 'storeExpense'])->name('expenses.store');
+    Route::delete('expenses/{expense}', [FinanceController::class, 'destroyExpense'])
+        ->whereNumber('expense')
+        ->name('expenses.destroy');
+
+    // Alias lama agar link lama (mis. dari flash redirect) tetap bekerja
     Route::post('finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
     Route::delete('finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])
         ->whereNumber('expense')

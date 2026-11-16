@@ -58,8 +58,23 @@ class ChatController extends Controller
     }
 
     /**
+     * GET /api/v1/chat/complaint-room — ambil / buat saluran laporan & keluhan
+     * khusus milik penghuni yang sedang login.
+     */
+    public function complaintRoom(Request $request): JsonResponse
+    {
+        $room = $this->chat->ensureComplaintRoom($request->user());
+        $unread = $this->chat->unreadCounts($request->user());
+
+        return response()->json([
+            'data' => (new ChatRoomResource($room, $unread))->resolve(),
+        ]);
+    }
+
+    /**
      * POST /api/v1/chat/rooms/{room}/messages — kirim pesan;
-     * admin dapat menandai is_announcement untuk pengumuman resmi.
+     * admin dapat menandai is_announcement untuk pengumuman resmi,
+     * penghuni dapat mengirim laporan/keluhan (is_complaint & complaint_category).
      */
     public function store(StoreMessageRequest $request, ChatRoom $room): JsonResponse
     {
@@ -70,6 +85,8 @@ class ChatController extends Controller
             $request->user(),
             $request->validated('body'),
             $request->boolean('is_announcement'),
+            $request->boolean('is_complaint'),
+            $request->validated('complaint_category'),
         );
 
         return (new MessageResource($message))

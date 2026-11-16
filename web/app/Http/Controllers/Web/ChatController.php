@@ -86,10 +86,26 @@ class ChatController extends Controller
             $request->user(),
             $request->validated('body'),
             $request->boolean('is_announcement'),
+            $request->boolean('is_complaint'),
+            $request->validated('complaint_category'),
         );
 
         return back()->with('success', $request->boolean('is_announcement')
             ? 'Pengumuman terkirim ke '.$room->name.'.'
-            : 'Pesan terkirim.');
+            : ($request->boolean('is_complaint') ? 'Laporan/keluhan terkirim.' : 'Pesan terkirim.'));
+    }
+
+    /**
+     * PUT /chat/messages/{message}/complaint-status — ubah status laporan keluhan (menunggu / diproses / selesai).
+     */
+    public function updateComplaintStatus(Request $request, \App\Models\Message $message): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'in:menunggu_tanggapan,diproses,selesai'],
+        ]);
+
+        $this->chat->updateComplaintStatus($message, $validated['status']);
+
+        return back()->with('success', 'Status laporan berhasil diperbarui.');
     }
 }

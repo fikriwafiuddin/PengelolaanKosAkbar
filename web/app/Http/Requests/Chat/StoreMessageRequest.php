@@ -23,6 +23,8 @@ class StoreMessageRequest extends FormRequest
             'body' => ['required', 'string', 'max:1000'],
             // Hanya dihormati untuk admin — divalidasi ulang di service.
             'is_announcement' => ['nullable', 'boolean'],
+            'is_complaint' => ['nullable', 'boolean'],
+            'complaint_category' => ['nullable', 'string', 'max:100'],
         ];
     }
 

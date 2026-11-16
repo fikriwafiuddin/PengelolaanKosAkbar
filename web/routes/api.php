@@ -48,7 +48,9 @@ Route::prefix('v1')->group(function () {
         // Pemesanan kamar (Sprint 2)
         Route::get('bookings', [BookingController::class, 'index'])->name('api.v1.bookings.index');
         Route::post('bookings', [BookingController::class, 'store'])->name('api.v1.bookings.store');
-
+        Route::post('bookings/{booking}/leave', [BookingController::class, 'leave'])
+            ->whereNumber('booking')
+            ->name('api.v1.bookings.leave');
         // Tagihan sewa bulanan (Sprint 2)
         Route::get('invoices', [InvoiceController::class, 'index'])->name('api.v1.invoices.index');
         Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])
@@ -66,6 +68,7 @@ Route::prefix('v1')->group(function () {
 
         // Chat grup & pengumuman (Sprint 3)
         Route::get('chat/rooms', [ChatController::class, 'rooms'])->name('api.v1.chat.rooms');
+        Route::get('chat/complaint-room', [ChatController::class, 'complaintRoom'])->name('api.v1.chat.complaintRoom');
         Route::get('chat/rooms/{room}/messages', [ChatController::class, 'messages'])
             ->whereNumber('room')
             ->name('api.v1.chat.messages');

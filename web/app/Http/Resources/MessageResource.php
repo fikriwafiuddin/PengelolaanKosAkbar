@@ -20,6 +20,9 @@ class MessageResource extends JsonResource
             'chat_room_id' => $this->chat_room_id,
             'body' => $this->body,
             'is_announcement' => $this->is_announcement,
+            'is_complaint' => $this->is_complaint ?? false,
+            'complaint_category' => $this->complaint_category,
+            'complaint_status' => $this->complaint_status,
             'sent_at' => $this->created_at?->toIso8601String(),
             'sent_at_formatted' => $this->created_at?->locale('id')->translatedFormat('d F Y, H:i'),
             // true bila pesan ini dikirim oleh pengguna yang sedang login.
@@ -31,6 +34,7 @@ class MessageResource extends JsonResource
                 'id' => $this->user?->id,
                 'name' => $this->user?->name,
                 'role' => $this->user?->role,
+                'room_number' => $this->user?->resident?->activeBooking?->room?->room_number,
             ]),
         ];
     }

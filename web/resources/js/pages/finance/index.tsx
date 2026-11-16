@@ -1,35 +1,19 @@
-import { useEffect, useState } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     ArrowDownRight,
     ArrowUpRight,
     Download,
-    Plus,
     TrendingUp,
-    Trash2,
     Wallet,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import Heading from '@/components/heading';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import * as financeRoutes from '@/routes/finance';
-import * as financeExpenses from '@/routes/finance/expenses';
+import * as expensesRoutes from '@/routes/expenses';
 import type { BreadcrumbItem } from '@/types';
 
 type MonthOption = { value: string; label: string };
@@ -65,31 +49,12 @@ type PaymentReportRow = {
     paid_at_formatted: string | null;
 };
 
-type CategoryRow = {
-    category: string;
-    total_items: number;
-    total_amount: number;
-};
-
-type ExpenseRow = {
-    id: number;
-    expense_date: string;
-    expense_date_formatted: string;
-    category: string;
-    description: string | null;
-    amount: number;
-    amount_formatted: string;
-    creator_name: string | null;
-};
-
 type Props = {
     month: string;
     summary: Summary;
     months: MonthOption[];
     trend: TrendPoint[];
     paymentReport: PaymentReportRow[];
-    expenseByCategory: CategoryRow[];
-    expenses: ExpenseRow[];
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -101,9 +66,9 @@ const rupiah = (value: number) =>
     'Rp ' + value.toLocaleString('id-ID', { maximumFractionDigits: 0 });
 
 /**
- * Laporan Keuangan (Sprint 4): ringkasan pemasukan-pengeluaran-laba,
- * laporan pembayaran sewa, rekap pengeluaran + pencatatan, dan
- * ekspor CSV.
+ * Laporan Keuangan: ringkasan pemasukan-pengeluaran-laba,
+ * tren 6 bulan, laporan pembayaran sewa, dan ekspor CSV.
+ * Pencatatan pengeluaran dipindah ke halaman /expenses (Rev-2).
  */
 export default function FinanceIndex({
     month,
@@ -111,21 +76,7 @@ export default function FinanceIndex({
     months,
     trend,
     paymentReport,
-    expenseByCategory,
-    expenses,
 }: Props) {
-    const { flash } = usePage().props;
-    const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
-
-    useEffect(() => {
-        if (flash?.success) {
-            toast.success(flash.success);
-        }
-        if (flash?.error) {
-            toast.error(flash.error);
-        }
-    }, [flash]);
-
     function changeMonth(next: string) {
         router.get(
             financeRoutes.index(),
@@ -178,6 +129,12 @@ export default function FinanceIndex({
                                 Ekspor Kas
                             </a>
                         </Button>
+                        {/* <Button variant="outline" asChild>
+                            <a href={expensesRoutes.index.url()}>
+                                <Wallet className="size-4" />
+                                Pengeluaran
+                            </a>
+                        </Button> */}
                     </div>
                 </div>
 
@@ -196,11 +153,11 @@ export default function FinanceIndex({
                         change={
                             summary.previous_expense > 0
                                 ? Math.round(
-                                      ((summary.expense - summary.previous_expense) /
-                                          summary.previous_expense) *
-                                          100 *
-                                          10,
-                                  ) / 10
+                                    ((summary.expense - summary.previous_expense) /
+                                        summary.previous_expense) *
+                                    100 *
+                                    10,
+                                ) / 10
                                 : null
                         }
                         icon={<ArrowDownRight className="size-4" />}
@@ -212,11 +169,11 @@ export default function FinanceIndex({
                         change={
                             summary.previous_profit !== 0
                                 ? Math.round(
-                                      ((summary.profit - summary.previous_profit) /
-                                          Math.abs(summary.previous_profit)) *
-                                          100 *
-                                          10,
-                                  ) / 10
+                                    ((summary.profit - summary.previous_profit) /
+                                        Math.abs(summary.previous_profit)) *
+                                    100 *
+                                    10,
+                                ) / 10
                                 : null
                         }
                         icon={<TrendingUp className="size-4" />}
@@ -225,7 +182,7 @@ export default function FinanceIndex({
                 </div>
 
                 {/* Tren 6 bulan */}
-                <Card className="py-0">
+                {/* <Card className="py-0">
                     <CardContent className="px-6 py-5">
                         <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                             Tren 6 Bulan (pemasukan vs pengeluaran)
@@ -275,186 +232,77 @@ export default function FinanceIndex({
                             </span>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> */}
 
-                <div className="grid gap-6 xl:grid-cols-2">
-                    {/* Laporan pembayaran sewa */}
-                    <Card className="py-0">
-                        <CardContent className="px-0 py-5">
-                            <p className="px-6 pb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                Laporan Pembayaran Sewa — {summary.month_label} (
-                                {paymentReport.length} transaksi)
-                            </p>
-                            <div className="max-h-96 overflow-y-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="sticky top-0 bg-card">
-                                        <tr className="border-b text-left text-xs text-muted-foreground">
-                                            <th className="px-6 py-2 font-medium">
-                                                Penghuni
-                                            </th>
-                                            <th className="px-3 py-2 font-medium">
-                                                Kamar
-                                            </th>
-                                            <th className="px-3 py-2 font-medium">
-                                                Metode
-                                            </th>
-                                            <th className="px-6 py-2 text-right font-medium">
-                                                Nominal
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paymentReport.map((row) => (
-                                            <tr
-                                                key={row.id}
-                                                className="border-b border-border/50"
-                                            >
-                                                <td className="px-6 py-2.5">
-                                                    <p className="font-medium">
-                                                        {row.resident_name}
-                                                    </p>
-                                                    <p className="font-mono text-[0.65rem] text-muted-foreground">
-                                                        {row.receipt_no}
-                                                    </p>
-                                                </td>
-                                                <td className="px-3 py-2.5 text-muted-foreground">
-                                                    {row.room_number ?? '-'}
-                                                </td>
-                                                <td className="px-3 py-2.5">
-                                                    <Badge variant="secondary">
-                                                        {row.method_label}
-                                                    </Badge>
-                                                </td>
-                                                <td className="px-6 py-2.5 text-right font-semibold">
-                                                    {rupiah(row.amount)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {paymentReport.length === 0 && (
-                                            <tr>
-                                                <td
-                                                    colSpan={4}
-                                                    className="px-6 py-8 text-center text-muted-foreground"
-                                                >
-                                                    Belum ada pembayaran
-                                                    terverifikasi bulan ini.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Rekap pengeluaran + daftar */}
-                    <Card className="py-0">
-                        <CardContent className="px-6 py-5">
-                            <div className="flex items-center justify-between pb-3">
-                                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                    Pengeluaran Operasional —{' '}
-                                    {summary.month_label}
-                                </p>
-                                <Button
-                                    size="sm"
-                                    className="h-8"
-                                    onClick={() => setExpenseDialogOpen(true)}
-                                >
-                                    <Plus className="size-3.5" />
-                                    Catat
-                                </Button>
-                            </div>
-
-                            {expenseByCategory.length > 0 && (
-                                <div className="mb-4 space-y-2">
-                                    {expenseByCategory.map((category) => (
-                                        <div key={category.category}>
-                                            <div className="flex justify-between text-xs">
-                                                <span className="font-medium">
-                                                    {category.category} ({category.total_items}x)
-                                                </span>
-                                                <span className="text-muted-foreground">
-                                                    {rupiah(category.total_amount)}
-                                                </span>
-                                            </div>
-                                            <div className="mt-1 h-1.5 rounded-full bg-muted">
-                                                <div
-                                                    className="h-1.5 rounded-full bg-red-400/70"
-                                                    style={{
-                                                        width: `${Math.min((category.total_amount / Math.max(summary.expense, 1)) * 100, 100)}%`,
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="max-h-72 space-y-2 overflow-y-auto">
-                                {expenses.map((expense) => (
-                                    <div
-                                        key={expense.id}
-                                        className="flex items-center gap-3 rounded-lg border px-3 py-2"
-                                    >
-                                        <div className="flex size-8 items-center justify-center rounded-md bg-red-400/10">
-                                            <Wallet className="size-4 text-red-500" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-sm font-medium">
-                                                {expense.category}
-                                            </p>
-                                            <p className="truncate text-xs text-muted-foreground">
-                                                {expense.expense_date_formatted}
-                                                {expense.description
-                                                    ? ` · ${expense.description}`
-                                                    : ''}
-                                            </p>
-                                        </div>
-                                        <span className="text-sm font-semibold">
-                                            {expense.amount_formatted}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            className="text-muted-transition rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                            title="Hapus pengeluaran"
-                                            onClick={() => {
-                                                if (
-                                                    window.confirm(
-                                                        `Hapus pengeluaran "${expense.category}" ${expense.amount_formatted}?`,
-                                                    )
-                                                ) {
-                                                    router.delete(
-                                                        financeExpenses.destroy(
-                                                            { expense: expense.id },
-                                                        ),
-                                                        { preserveScroll: true },
-                                                    );
-                                                }
-                                            }}
+                {/* Laporan pembayaran sewa */}
+                <Card className="py-0">
+                    <CardContent className="px-0 py-5">
+                        <p className="px-6 pb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                            Laporan Pembayaran Sewa — {summary.month_label} (
+                            {paymentReport.length} transaksi)
+                        </p>
+                        <div className="max-h-96 overflow-y-auto">
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0 bg-card">
+                                    <tr className="border-b text-left text-xs text-muted-foreground">
+                                        <th className="px-6 py-2 font-medium">
+                                            Penghuni
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
+                                            Kamar
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
+                                            Metode
+                                        </th>
+                                        <th className="px-6 py-2 text-right font-medium">
+                                            Nominal
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {paymentReport.map((row) => (
+                                        <tr
+                                            key={row.id}
+                                            className="border-b border-border/50"
                                         >
-                                            <Trash2 className="size-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                                {expenses.length === 0 && (
-                                    <p className="py-8 text-center text-sm text-muted-foreground">
-                                        Belum ada pengeluaran bulan ini.
-                                    </p>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                                            <td className="px-6 py-2.5">
+                                                <p className="font-medium">
+                                                    {row.resident_name}
+                                                </p>
+                                                <p className="font-mono text-[0.65rem] text-muted-foreground">
+                                                    {row.receipt_no}
+                                                </p>
+                                            </td>
+                                            <td className="px-3 py-2.5 text-muted-foreground">
+                                                {row.room_number ?? '-'}
+                                            </td>
+                                            <td className="px-3 py-2.5">
+                                                <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">
+                                                    {row.method_label}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-2.5 text-right font-semibold">
+                                                {rupiah(row.amount)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {paymentReport.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={4}
+                                                className="px-6 py-8 text-center text-muted-foreground"
+                                            >
+                                                Belum ada pembayaran
+                                                terverifikasi bulan ini.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
-
-            {/* Dialog catat pengeluaran */}
-            <ExpenseDialog
-                open={expenseDialogOpen}
-                onOpenChange={setExpenseDialogOpen}
-                defaultDate={month === new Date().toISOString().slice(0, 7)
-                    ? new Date().toISOString().slice(0, 10)
-                    : `${month}-01`}
-            />
         </>
     );
 }
@@ -516,137 +364,5 @@ function SummaryCard({
                 )}
             </CardContent>
         </Card>
-    );
-}
-
-/**
- * Dialog pencatatan pengeluaran operasional.
- */
-function ExpenseDialog({
-    open,
-    onOpenChange,
-    defaultDate,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    defaultDate: string;
-}) {
-    const [expenseDate, setExpenseDate] = useState(defaultDate);
-    const [category, setCategory] = useState('');
-    const [description, setDescription] = useState('');
-    const [amount, setAmount] = useState('');
-    const [processing, setProcessing] = useState(false);
-
-    function submit(event: React.FormEvent) {
-        event.preventDefault();
-        setProcessing(true);
-
-        router.post(
-            financeExpenses.store(),
-            {
-                expense_date: expenseDate,
-                category: category.trim(),
-                description: description.trim() || null,
-                amount: Number(amount),
-            },
-            {
-                onSuccess: () => {
-                    onOpenChange(false);
-                    setCategory('');
-                    setDescription('');
-                    setAmount('');
-                },
-                onFinish: () => setProcessing(false),
-            },
-        );
-    }
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Catat Pengeluaran</DialogTitle>
-                    <DialogDescription>
-                        Pengeluaran operasional kos (listrik, kebersihan,
-                        perawatan, dll.) untuk bahan laporan kas & laba.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <form onSubmit={submit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="expense-date">Tanggal</Label>
-                            <Input
-                                id="expense-date"
-                                type="date"
-                                value={expenseDate}
-                                max={new Date().toISOString().slice(0, 10)}
-                                onChange={(e) => setExpenseDate(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="expense-amount">Nominal (Rp)</Label>
-                            <Input
-                                id="expense-amount"
-                                type="number"
-                                min={1000}
-                                step={500}
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                placeholder="450000"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label htmlFor="expense-category">Kategori</Label>
-                        <Input
-                            id="expense-category"
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                            placeholder="mis. Listrik & Air"
-                            list="expense-categories"
-                            required
-                        />
-                        <datalist id="expense-categories">
-                            <option value="Listrik & Air" />
-                            <option value="Kebersihan" />
-                            <option value="Perawatan" />
-                            <option value="Internet" />
-                            <option value="Lainnya" />
-                        </datalist>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label htmlFor="expense-description">Keterangan</Label>
-                        <Textarea
-                            id="expense-description"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Opsional"
-                            rows={2}
-                        />
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={processing || !category.trim() || !amount}
-                        >
-                            Simpan
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
     );
 }

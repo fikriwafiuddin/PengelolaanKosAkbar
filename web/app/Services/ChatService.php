@@ -45,6 +45,7 @@ class ChatService
         }
 
         $this->ensureDefaultMembership($user);
+        $this->ensureComplaintRoom($user);
 
         return ChatRoom::query()
             ->whereHas('members', fn (Builder $query) => $query->where('user_id', $user->id))
@@ -136,10 +137,16 @@ class ChatService
 
     /**
      * Kirim pesan ke grup. Hanya admin yang boleh menandai pesan
-     * sebagai pengumuman resmi.
+     * sebagai pengumuman resmi. Penghuni dapat mengirim laporan/keluhan.
      */
-    public function sendMessage(ChatRoom $room, User $sender, string $body, bool $isAnnouncement = false): Message
-    {
+    public function sendMessage(
+        ChatRoom $room,
+        User $sender,
+        string $body,
+        bool $isAnnouncement = false,
+        bool $isComplaint = false,
+        ?string $complaintCategory = null,
+    ): Message {
         if ($isAnnouncement && ! $sender->isAdmin()) {
             throw ValidationException::withMessages([
                 'is_announcement' => 'Hanya pengelola yang dapat mengirim pengumuman resmi.',
@@ -156,16 +163,36 @@ class ChatService
             'user_id' => $sender->id,
             'body' => $body,
             'is_announcement' => $isAnnouncement,
+            'is_complaint' => $isComplaint,
+            'complaint_category' => $isComplaint ? ($complaintCategory ?: 'Lainnya') : null,
+            'complaint_status' => $isComplaint ? 'menunggu_tanggapan' : null,
         ]);
 
         // Pesan sendiri langsung terhitung sudah dibaca.
         $this->markReadUpTo($room, $sender, $message->id);
 
-        $message->load('user:id,name,role');
+        $message->load(['user:id,name,role', 'user.resident.activeBooking.room']);
 
         // Firebase: salin pesan ke Firestore (stream realtime mobile)
         // + push FCM ke anggota grup selain pengirim.
         $this->broadcastMessage($room, $sender, $message);
+
+        return $message;
+    }
+
+    /**
+     * Perbarui status penanganan laporan/keluhan (admin).
+     */
+    public function updateComplaintStatus(Message $message, string $status): Message
+    {
+        $validStatuses = ['menunggu_tanggapan', 'diproses', 'selesai'];
+        if (! in_array($status, $validStatuses, true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Status laporan tidak valid.',
+            ]);
+        }
+
+        $message->update(['complaint_status' => $status]);
 
         return $message;
     }
@@ -190,7 +217,9 @@ class ChatService
 
         $title = $message->is_announcement
             ? 'Pengumuman — '.$room->name
-            : $sender->name.' — '.$room->name;
+            : ($message->is_complaint
+                ? "⚠️ Laporan [{$message->complaint_category}] — {$sender->name}"
+                : $sender->name.' — '.$room->name);
 
         $this->fcm->sendToUsers(
             $recipients,
@@ -201,6 +230,7 @@ class ChatService
                 'chat_room_id' => (string) $room->id,
                 'message_id' => (string) $message->id,
                 'is_announcement' => $message->is_announcement ? '1' : '0',
+                'is_complaint' => $message->is_complaint ? '1' : '0',
             ],
         );
     }
@@ -238,6 +268,22 @@ class ChatService
         );
 
         $room->members()->syncWithoutDetaching([$user->id]);
+    }
+
+    /**
+     * Pastikan grup Laporan & Keluhan khusus penghuni dengan admin ada.
+     */
+    public function ensureComplaintRoom(User $user): ChatRoom
+    {
+        $room = ChatRoom::query()->firstOrCreate(
+            ['name' => "Laporan & Keluhan — {$user->name}"],
+            ['description' => "Saluran pengaduan dan keluhan khusus antara {$user->name} dan pengelola kos."],
+        );
+
+        $adminIds = User::query()->where('role', 'admin')->pluck('id')->all();
+        $room->members()->syncWithoutDetaching(array_merge([$user->id], $adminIds));
+
+        return $room;
     }
 
     /**

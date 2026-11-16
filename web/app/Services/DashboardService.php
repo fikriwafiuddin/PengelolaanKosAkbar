@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Invoice;
 use App\Models\Resident;
 use App\Models\Room;
 use Illuminate\Support\Collection;
@@ -14,21 +15,26 @@ class DashboardService
     public function __construct(
         private readonly RoomService $rooms,
         private readonly ResidentService $residents,
+        private readonly FinanceService $finance,
     ) {}
 
     /**
      * Seluruh angka ringkas yang ditampilkan di dashboard admin.
+     * Mencakup grafik keuangan (Rev-3), penghuni belum bayar (Rev-4),
+     * serta hitungan calon penghuni & alumni (Rev-5).
      */
     public function overview(): array
     {
-        $roomStats = $this->rooms->stats();
+        $roomStats     = $this->rooms->stats();
         $residentStats = $this->residents->stats();
+        $currentMonth  = now()->format('Y-m');
 
         return [
-            'rooms' => $roomStats,
-            'occupancy' => $this->occupancy($roomStats['total'], $roomStats['terisi']),
-            'residents' => $residentStats,
-            'vacant_rooms' => $this->vacantRooms(),
+            'rooms'          => $roomStats,
+            'occupancy'      => $this->occupancy($roomStats['total'], $roomStats['terisi']),
+            'residents'      => $residentStats,
+            'trend'          => $this->finance->trend($currentMonth),   // Rev-3: grafik keuangan
+            'overdue_unpaid' => $this->overdueUnpaid(),                 // Rev-4: penghuni terlambat bayar
             'latest_residents' => $this->latestResidents(),
         ];
     }
@@ -46,15 +52,35 @@ class DashboardService
     }
 
     /**
-     * Daftar kamar kosong (untuk panel "kamar siap huni").
+     * Daftar penghuni yang tagihan-nya sudah lewat jatuh tempo
+     * tapi belum dibayar/terverifikasi (Rev-4).
+     *
+     * @return array<int, array<string, mixed>>
      */
-    private function vacantRooms(): Collection
+    private function overdueUnpaid(): array
     {
-        return Room::query()
-            ->where('status', 'kosong')
-            ->orderBy('room_number')
-            ->limit(6)
-            ->get(['id', 'room_number', 'type', 'price_monthly']);
+        return Invoice::query()
+            ->where('status', 'belum_bayar')
+            ->where('due_date', '<', now())
+            ->with([
+                'booking.resident',
+                'booking.room',
+            ])
+            ->orderBy('due_date')
+            ->limit(10)
+            ->get()
+            ->map(fn (Invoice $invoice) => [
+                'invoice_id'    => $invoice->id,
+                'resident_name' => $invoice->booking?->resident?->full_name ?? '-',
+                'room_number'   => $invoice->booking?->room?->room_number ?? '-',
+                'period'        => $invoice->period,
+                'period_label'  => $invoice->periodLabel(),
+                'amount'        => (float) $invoice->amount,
+                'amount_formatted' => 'Rp ' . number_format((float) $invoice->amount, 0, ',', '.'),
+                'due_date'      => $invoice->due_date->toDateString(),
+                'due_date_formatted' => $invoice->due_date->locale('id')->translatedFormat('d M Y'),
+            ])
+            ->all();
     }
 
     /**
@@ -69,8 +95,8 @@ class DashboardService
             ->limit(6)
             ->get(['id', 'full_name', 'created_at'])
             ->map(fn (Resident $resident) => [
-                'name' => $resident->full_name,
-                'room' => $resident->activeBooking?->room?->room_number,
+                'name'       => $resident->full_name,
+                'room'       => $resident->activeBooking?->room?->room_number,
                 'start_date' => $resident->activeBooking?->start_date?->format('d M Y'),
             ]);
     }

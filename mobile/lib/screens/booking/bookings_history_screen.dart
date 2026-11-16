@@ -41,6 +41,35 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
     }
   }
 
+  Future<void> _keluar(int bookingId) async {
+    final yakin = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Keluar dari kost?'),
+        content: const Text('Sewa Anda akan diakhiri dan kamar dikosongkan. Tindakan ini tidak bisa dibatalkan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ya, Keluar')),
+        ],
+      ),
+    );
+    if (yakin != true) return;
+
+    try {
+      await _bookings.leave(bookingId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Anda telah keluar dari kost.')),
+      );
+      // muat ulang daftar sewa di sini
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.errors.values.expand((m) => m).firstOrNull ?? e.message)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
