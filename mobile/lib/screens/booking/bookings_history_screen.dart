@@ -62,6 +62,7 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
         const SnackBar(content: Text('Anda telah keluar dari kost.')),
       );
       // muat ulang daftar sewa di sini
+      await _fetch();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -111,7 +112,10 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
                               horizontal: 20, vertical: 8),
                           children: [
                             for (final booking in _list)
-                              _BookingTile(booking: booking),
+                              _BookingTile(
+                                booking: booking,
+                                onLeave: () => _keluar(booking.id),
+                              ),
                             const SizedBox(height: 20),
                           ],
                         ),
@@ -122,9 +126,10 @@ class _BookingsHistoryScreenState extends State<BookingsHistoryScreen> {
 }
 
 class _BookingTile extends StatelessWidget {
-  const _BookingTile({required this.booking});
+  const _BookingTile({required this.booking, required this.onLeave});
 
   final Booking booking;
+  final VoidCallback onLeave;
 
   @override
   Widget build(BuildContext context) {
@@ -184,6 +189,17 @@ class _BookingTile extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: AppColors.textDark),
             ),
+            if (booking.status == BookingStatus.aktif) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onLeave,
+                  icon: const Icon(Icons.logout_rounded, size: 18),
+                  label: const Text('Keluar dari Kost'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
