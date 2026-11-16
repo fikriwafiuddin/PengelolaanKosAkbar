@@ -68,12 +68,28 @@ class PushService {
 
       // Pasang listener dulu agar token pertama tidak terlewat.
       messaging.onRegistered.listen((token) {
-        debugPrint('[FCM] token diterima: ${token.substring(0, token.length > 24 ? 24 : token.length)}…');
+        debugPrint('[FCM] token diterima (onRegistered): ${token.substring(0, token.length > 24 ? 24 : token.length)}…');
+        _registerToken(client, token);
+      });
+
+      messaging.onTokenRefresh.listen((token) {
+        debugPrint('[FCM] token diperbarui (onTokenRefresh): ${token.substring(0, token.length > 24 ? 24 : token.length)}…');
         _registerToken(client, token);
       });
 
       await messaging.register();
       debugPrint('[FCM] register() dipanggil — menunggu token…');
+
+      // Ambil token secara langsung untuk memastikan token langsung terdaftar
+      try {
+        final token = await messaging.getToken();
+        if (token != null && token.isNotEmpty) {
+          debugPrint('[FCM] getToken() berhasil: ${token.substring(0, token.length > 24 ? 24 : token.length)}…');
+          await _registerToken(client, token);
+        }
+      } catch (e) {
+        debugPrint('[FCM] getToken() error / dilewati: $e');
+      }
     } catch (e) {
       // Gagal inisialisasi (mis. emulator tanpa layanan Google, atau
       // appId/projectId di firebase_config.dart salah) — tampilkan
