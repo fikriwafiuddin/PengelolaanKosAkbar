@@ -4,6 +4,7 @@ import { Plus, Trash2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Heading from '@/components/heading';
+import ConfirmDialog from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -79,6 +80,9 @@ export default function ExpensesIndex({
 }: Props) {
     const { flash } = usePage().props;
     const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<ExpenseRow | null>(
+        null,
+    );
 
     useEffect(() => {
         if (flash?.success) toast.success(flash.success);
@@ -254,20 +258,9 @@ export default function ExpensesIndex({
                                             type="button"
                                             className="shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
                                             title="Hapus pengeluaran"
-                                            onClick={() => {
-                                                if (
-                                                    window.confirm(
-                                                        `Hapus pengeluaran "${expense.category}" ${expense.amount_formatted}?`,
-                                                    )
-                                                ) {
-                                                    router.delete(
-                                                        expensesRoutes.destroy({
-                                                            expense: expense.id,
-                                                        }),
-                                                        { preserveScroll: true },
-                                                    );
-                                                }
-                                            }}
+                                            onClick={() =>
+                                                setPendingDelete(expense)
+                                            }
                                         >
                                             <Trash2 className="size-4" />
                                         </button>
@@ -293,6 +286,32 @@ export default function ExpensesIndex({
                         ? new Date().toISOString().slice(0, 10)
                         : `${month}-01`
                 }
+            />
+
+            {/* Dialog konfirmasi hapus pengeluaran */}
+            <ConfirmDialog
+                open={pendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open) setPendingDelete(null);
+                }}
+                title="Hapus pengeluaran ini?"
+                description={`Pengeluaran "${pendingDelete?.category ?? ''}" sebesar ${
+                    pendingDelete?.amount_formatted ?? ''
+                } akan dihapus permanen.`}
+                confirmLabel="Ya, Hapus"
+                destructive
+                onConfirm={() => {
+                    const expense = pendingDelete;
+
+                    setPendingDelete(null);
+
+                    if (expense) {
+                        router.delete(
+                            expensesRoutes.destroy({ expense: expense.id }),
+                            { preserveScroll: true },
+                        );
+                    }
+                }}
             />
         </>
     );

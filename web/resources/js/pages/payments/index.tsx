@@ -4,6 +4,7 @@ import { CheckCircle2, ReceiptText, Search, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Heading from '@/components/heading';
+import ConfirmDialog from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -72,6 +73,10 @@ export default function PaymentsIndex({
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters.q ?? '');
     const [proofPayment, setProofPayment] = useState<Payment | null>(null);
+    const [pendingVerification, setPendingVerification] = useState<{
+        payment: Payment;
+        status: 'terverifikasi' | 'ditolak';
+    } | null>(null);
 
     const activeStatus = filters.status ?? 'pending';
 
@@ -113,22 +118,28 @@ export default function PaymentsIndex({
     }
 
     /**
-     * Aksi admin: terima / tolak pembayaran penghuni.
+     * Aksi admin: terima / tolak pembayaran penghuni (lewat dialog
+     * konfirmasi).
      */
-    function verifyPayment(payment: Payment, status: 'terverifikasi' | 'ditolak') {
-        const label = status === 'terverifikasi' ? 'menerima' : 'menolak';
+    function verifyPayment(
+        payment: Payment,
+        status: 'terverifikasi' | 'ditolak',
+    ) {
+        setPendingVerification({ payment, status });
+    }
 
-        if (
-            !window.confirm(
-                `Yakin ${label} pembayaran ${payment.resident_name ?? 'penghuni ini'} sebesar ${payment.amount_formatted}?`,
-            )
-        ) {
+    function confirmVerification() {
+        const pending = pendingVerification;
+
+        setPendingVerification(null);
+
+        if (!pending) {
             return;
         }
 
         router.put(
-            paymentsVerification.update({ payment: payment.id }),
-            { status },
+            paymentsVerification.update({ payment: pending.payment.id }),
+            { status: pending.status },
             { preserveScroll: true },
         );
     }
@@ -471,6 +482,36 @@ export default function PaymentsIndex({
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Dialog konfirmasi verifikasi pembayaran */}
+            <ConfirmDialog
+                open={pendingVerification !== null}
+                onOpenChange={(open) => {
+                    if (!open) setPendingVerification(null);
+                }}
+                title={
+                    pendingVerification?.status === 'ditolak'
+                        ? 'Tolak pembayaran ini?'
+                        : 'Terima pembayaran ini?'
+                }
+                description={`Yakin ${
+                    pendingVerification?.status === 'ditolak'
+                        ? 'menolak'
+                        : 'menerima'
+                } pembayaran ${
+                    pendingVerification?.payment.resident_name ??
+                    'penghuni ini'
+                } sebesar ${
+                    pendingVerification?.payment.amount_formatted ?? ''
+                }?`}
+                confirmLabel={
+                    pendingVerification?.status === 'ditolak'
+                        ? 'Ya, Tolak'
+                        : 'Ya, Terima'
+                }
+                destructive={pendingVerification?.status === 'ditolak'}
+                onConfirm={confirmVerification}
+            />
         </>
     );
 }

@@ -4,6 +4,7 @@ import { CheckCircle2, Search, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Heading from '@/components/heading';
+import ConfirmDialog from '@/components/confirm-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -79,6 +80,10 @@ export default function ResidentsIndex({
 }: Props) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters.q ?? '');
+    const [pendingValidation, setPendingValidation] = useState<{
+        resident: Resident;
+        status: 'aktif' | 'belum_menyewa' | 'ditolak';
+    } | null>(null);
 
     // Notifikasi hasil aksi validasi akun (flash message dari controller).
     useEffect(() => {
@@ -118,31 +123,29 @@ export default function ResidentsIndex({
     }
 
     /**
-     * Aksi admin: setujui / tolak akun penghuni.
+     * Aksi admin: setujui / tolak akun penghuni (lewat dialog
+     * konfirmasi).
      */
     function validateAccount(
         resident: Resident,
         status: 'aktif' | 'belum_menyewa' | 'ditolak',
     ) {
-        const userId = resident.user?.id;
+        setPendingValidation({ resident, status });
+    }
 
-        if (!userId) {
-            return;
-        }
+    function confirmValidation() {
+        const pending = pendingValidation;
+        const userId = pending?.resident.user?.id;
 
-        const label = status === 'ditolak' ? 'menolak' : 'menyetujui';
+        setPendingValidation(null);
 
-        if (
-            !window.confirm(
-                `Yakin ${label} akun ${resident.full_name}?`,
-            )
-        ) {
+        if (!pending || !userId) {
             return;
         }
 
         router.put(
             residentsValidation.update({ user: userId }),
-            { status },
+            { status: pending.status },
             { preserveScroll: true },
         );
     }
@@ -411,6 +414,31 @@ export default function ResidentsIndex({
                     </div>
                 </div>
             </div>
+
+            {/* Dialog konfirmasi validasi akun */}
+            <ConfirmDialog
+                open={pendingValidation !== null}
+                onOpenChange={(open) => {
+                    if (!open) setPendingValidation(null);
+                }}
+                title={
+                    pendingValidation?.status === 'ditolak'
+                        ? 'Tolak akun penghuni?'
+                        : 'Terima akun penghuni?'
+                }
+                description={`Yakin ${
+                    pendingValidation?.status === 'ditolak'
+                        ? 'menolak'
+                        : 'menyetujui'
+                } akun ${pendingValidation?.resident.full_name ?? ''}?`}
+                confirmLabel={
+                    pendingValidation?.status === 'ditolak'
+                        ? 'Ya, Tolak'
+                        : 'Ya, Terima'
+                }
+                destructive={pendingValidation?.status === 'ditolak'}
+                onConfirm={confirmValidation}
+            />
         </>
     );
 }
