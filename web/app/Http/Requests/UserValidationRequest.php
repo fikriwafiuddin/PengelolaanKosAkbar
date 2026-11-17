@@ -21,7 +21,7 @@ class UserValidationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['required', 'in:aktif,ditolak'],
+            'status' => ['required', 'in:aktif,belum_menyewa,ditolak'],
         ];
     }
 
@@ -34,7 +34,7 @@ class UserValidationRequest extends FormRequest
     {
         return [
             'status.required' => 'Status validasi wajib dipilih.',
-            'status.in' => 'Status validasi tidak valid (hanya aktif atau ditolak).',
+            'status.in' => 'Status validasi tidak valid (hanya aktif, belum_menyewa, atau ditolak).',
         ];
     }
 }

@@ -43,8 +43,11 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     /** Registrasi baru — menunggu validasi admin. */
     public const STATUS_PENDING = 'menunggu_validasi';
 
-    /** Akun tervalidasi — boleh login. */
+    /** Sedang menyewa kamar (akun tervalidasi + punya sewa aktif). */
     public const STATUS_ACTIVE = 'aktif';
+
+    /** Tervalidasi tetapi sedang tidak menyewa (baru disetujui / sudah keluar kost). */
+    public const STATUS_NOT_RENTING = 'belum_menyewa';
 
     /** Registrasi ditolak admin. */
     public const STATUS_REJECTED = 'ditolak';
@@ -74,6 +77,17 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Cek apakah penghuni sedang menyewa (punya sewa berstatus aktif).
+     * Dihitung dari booking — bukan dari kolom status — supaya tidak
+     * bisa drift bila status akun diubah manual oleh admin.
+     */
+    public function isRenting(): bool
+    {
+        return $this->role === 'penghuni'
+            && $this->resident?->activeBooking()->exists();
+    }
+
+    /**
      * Label status akun dalam bahasa Indonesia untuk ditampilkan di UI.
      */
     public function statusLabel(): string
@@ -81,6 +95,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return match ($this->status) {
             self::STATUS_ACTIVE => 'Aktif',
             self::STATUS_PENDING => 'Menunggu Validasi',
+            self::STATUS_NOT_RENTING => 'Belum Menyewa',
             self::STATUS_REJECTED => 'Ditolak',
             default => $this->status,
         };

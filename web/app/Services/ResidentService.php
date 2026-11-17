@@ -88,7 +88,7 @@ class ResidentService
     {
         return Resident::query()->whereHas(
             'user',
-            fn (Builder $u) => $u->where('status', 'aktif'),
+            fn (Builder $u) => $u->whereIn('status', ['aktif', User::STATUS_NOT_RENTING]),
         );
     }
 

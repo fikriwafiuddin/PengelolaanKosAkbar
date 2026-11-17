@@ -45,8 +45,12 @@ const ACCOUNT_STATUS: Record<
     { label: string; className: string }
 > = {
     aktif: {
-        label: 'Aktif',
+        label: 'Aktif Menyewa',
         className: 'bg-teal-600/10 text-teal-700 dark:text-teal-400',
+    },
+    belum_menyewa: {
+        label: 'Belum Menyewa',
+        className: 'bg-slate-500/10 text-slate-700 dark:text-slate-400',
     },
     menunggu_validasi: {
         label: 'Menunggu Validasi',
@@ -56,6 +60,12 @@ const ACCOUNT_STATUS: Record<
         label: 'Ditolak',
         className: 'bg-red-500/10 text-red-700 dark:text-red-400',
     },
+};
+
+/** Badge untuk status akun yang tak dikenal (jangan menyerupai Aktif). */
+const UNKNOWN_STATUS = {
+    label: 'Tidak Diketahui',
+    className: 'bg-secondary text-muted-foreground',
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -110,15 +120,17 @@ export default function ResidentsIndex({
     /**
      * Aksi admin: setujui / tolak akun penghuni.
      */
-    function validateAccount(resident: Resident, status: 'aktif' | 'ditolak') {
+    function validateAccount(
+        resident: Resident,
+        status: 'aktif' | 'belum_menyewa' | 'ditolak',
+    ) {
         const userId = resident.user?.id;
 
         if (!userId) {
             return;
         }
 
-        const label =
-            status === 'aktif' ? 'menyetujui' : 'menolak';
+        const label = status === 'ditolak' ? 'menolak' : 'menyetujui';
 
         if (
             !window.confirm(
@@ -171,7 +183,10 @@ export default function ResidentsIndex({
                             <SelectItem value="semua">
                                 Semua Status Akun
                             </SelectItem>
-                            <SelectItem value="aktif">Aktif</SelectItem>
+                            <SelectItem value="aktif">Aktif Menyewa</SelectItem>
+                            <SelectItem value="belum_menyewa">
+                                Belum Menyewa
+                            </SelectItem>
                             <SelectItem value="menunggu_validasi">
                                 Menunggu Validasi
                             </SelectItem>
@@ -201,8 +216,8 @@ export default function ResidentsIndex({
                                 {residentPagination.data.map((resident) => {
                                     const status =
                                         ACCOUNT_STATUS[
-                                            resident.user?.status ?? 'aktif'
-                                        ] ?? ACCOUNT_STATUS.aktif;
+                                            resident.user?.status ?? ''
+                                        ] ?? UNKNOWN_STATUS;
                                     const isPending =
                                         resident.user?.status ===
                                         'menunggu_validasi';
@@ -294,7 +309,7 @@ export default function ResidentsIndex({
                                                             onClick={() =>
                                                                 validateAccount(
                                                                     resident,
-                                                                    'aktif',
+                                                                    'belum_menyewa',
                                                                 )
                                                             }
                                                         >

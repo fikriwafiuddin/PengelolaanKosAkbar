@@ -68,6 +68,9 @@ class BookingService
 
             $room->update(['status' => 'terisi']);
 
+            // Penghuni kini sedang menyewa — status akun ikut aktif.
+            $resident->user?->update(['status' => User::STATUS_ACTIVE]);
+
             $this->createInvoices($booking, $room, $startDate, (int) $data['duration_months']);
 
             return $booking;
@@ -129,6 +132,11 @@ class BookingService
         }
     }
 
+    /**
+     * Akhiri sewa (keluar kost): status pemesanan jadi 'selesai' dan
+     * kamar dikosongkan bila tidak ada penghuni aktif lain di kamar itu.
+     * Ditolak bila masih ada tagihan yang belum lunas.
+     */
     public function leave(Booking $booking, User $user): Booking
     {
         // hanya pemilik sewa yang boleh mengakhiri sewanya
@@ -140,7 +148,7 @@ class BookingService
             ]);
         }
 
-        // Aturan: tagihan harus lunas dulu (hapus blok ini kalau tidak diinginkan)
+        // Aturan: penghuni wajib melunasi semua tagihan sebelum keluar kost.
         $adaTunggakan = $booking->invoices()->where('status', '!=', 'lunas')->exists();
         if ($adaTunggakan) {
             throw ValidationException::withMessages([
@@ -152,13 +160,25 @@ class BookingService
             $booking->update(['status' => 'selesai']);
 
             // Kamar bisa dihuni lebih dari satu orang (mis. kamar 27)
-            $masihDihuni = Booking::where('room_id', $booking->room_id)   // SESUAIKAN nama kolom
+            $masihDihuni = Booking::where('room_id', $booking->room_id)
                 ->where('status', 'aktif')
                 ->where('id', '!=', $booking->id)
                 ->exists();
 
             if (! $masihDihuni) {
                 $booking->room()->update(['status' => 'kosong']);
+            }
+
+            // Status akun kembali "belum menyewa" bila tidak ada sewa
+            // aktif lain milik penghuni ini.
+            $masihMenyewa = Booking::query()
+                ->where('resident_id', $booking->resident_id)
+                ->where('status', 'aktif')
+                ->where('id', '!=', $booking->id)
+                ->exists();
+
+            if (! $masihMenyewa) {
+                $booking->resident?->user?->update(['status' => User::STATUS_NOT_RENTING]);
             }
 
             return $booking->fresh(['room']);

@@ -36,6 +36,8 @@ class ChatService
      */
     public function roomsForUser(User $user): Collection
     {
+        $this->assertCanChat($user);
+
         if ($user->isAdmin()) {
             return ChatRoom::query()
                 ->withCount('members')
@@ -56,10 +58,23 @@ class ChatService
     }
 
     /**
+     * Chat hanya untuk penghuni yang sedang menyewa kamar
+     * (admin bebas). 403 untuk yang belum/ sudah tidak menyewa.
+     */
+    public function assertCanChat(User $user): void
+    {
+        if (! $user->isAdmin() && ! $user->isRenting()) {
+            abort(403, 'Chat hanya untuk penghuni yang sedang menyewa kamar.');
+        }
+    }
+
+    /**
      * Cari satu grup; 404 bila penghuni bukan anggota (admin bebas).
      */
     public function findRoomForUser(User $user, ChatRoom $room): ChatRoom
     {
+        $this->assertCanChat($user);
+
         if (! $user->isAdmin()) {
             $isMember = $room->members()
                 ->where('user_id', $user->id)
@@ -116,6 +131,8 @@ class ChatService
             return [];
         }
 
+        $this->assertCanChat($user);
+
         $this->ensureDefaultMembership($user);
 
         $memberships = DB::table('chat_room_members')
@@ -154,6 +171,8 @@ class ChatService
         }
 
         if (! $sender->isAdmin()) {
+            $this->assertCanChat($sender);
+
             $isMember = $room->members()->where('user_id', $sender->id)->exists();
 
             abort_unless($isMember, 404, 'Grup chat tidak ditemukan.');

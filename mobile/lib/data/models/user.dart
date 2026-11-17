@@ -92,14 +92,16 @@ class User {
   final String email;
   final String role;
 
-  /// Status akun: menunggu_validasi | aktif | ditolak.
+  /// Status akun: menunggu_validasi | aktif (sedang menyewa) |
+  /// belum_menyewa | ditolak.
   final String? status;
   final String? phone;
   final ResidentProfile? resident;
 
   /// Label status akun dalam bahasa Indonesia.
   String get statusLabel => switch (status) {
-        'aktif' => 'Aktif',
+        'aktif' => 'Aktif Menyewa',
+        'belum_menyewa' => 'Belum Menyewa',
         'menunggu_validasi' => 'Menunggu Validasi',
         'ditolak' => 'Ditolak',
         _ => status ?? '-',

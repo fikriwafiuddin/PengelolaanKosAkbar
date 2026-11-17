@@ -59,10 +59,12 @@ class ChatController extends Controller
 
     /**
      * GET /api/v1/chat/complaint-room — ambil / buat saluran laporan & keluhan
-     * khusus milik penghuni yang sedang login.
+     * khusus milik penghuni yang sedang login (harus sedang menyewa).
      */
     public function complaintRoom(Request $request): JsonResponse
     {
+        $this->chat->assertCanChat($request->user());
+
         $room = $this->chat->ensureComplaintRoom($request->user());
         $unread = $this->chat->unreadCounts($request->user());
 

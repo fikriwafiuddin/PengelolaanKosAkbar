@@ -20,6 +20,7 @@ class _ChatRoomsScreenState extends State<ChatRoomsScreen> {
   late final ChatService _chat;
   ChatRoomList? _list;
   bool _loading = true;
+  bool _blocked = false;
   String? _error;
 
   @override
@@ -37,13 +38,20 @@ class _ChatRoomsScreenState extends State<ChatRoomsScreen> {
   }
 
   Future<void> _fetch() async {
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _blocked = false;
+    });
 
     try {
       final list = await _chat.rooms();
       setState(() => _list = list);
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      // 403: chat hanya untuk penghuni yang sedang menyewa kamar.
+      setState(() {
+        _blocked = e.statusCode == 403;
+        _error = e.message;
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -62,7 +70,27 @@ class _ChatRoomsScreenState extends State<ChatRoomsScreen> {
           child: _loading
               ? const Center(
                   child: CircularProgressIndicator(color: AppColors.terracotta))
-              : _error != null
+              : _blocked
+                  ? ListView(children: const [
+                      SizedBox(height: 240),
+                      Icon(Icons.lock_outline,
+                          size: 44, color: AppColors.textMuted),
+                      SizedBox(height: 12),
+                      Text(
+                        'Chat hanya untuk penghuni yang sedang menyewa kamar.',
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(color: AppColors.textDark, height: 1.6),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Silakan pesan kamar terlebih dahulu melalui menu Beranda.',
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(color: AppColors.textMuted, height: 1.6),
+                      ),
+                    ])
+                  : _error != null
                   ? ListView(children: [
                       SizedBox(height: MediaQuery.of(context).size.height / 3),
                       Text(_error!,

@@ -59,6 +59,7 @@ class ResidentSeeder extends Seeder
         }
 
         $this->createPendingRegistrant();
+        $this->createNotRentingResident();
     }
 
     /**
@@ -127,6 +128,39 @@ class ResidentSeeder extends Seeder
                 'occupation' => 'Mahasiswa',
                 'guardian_name' => 'Bapak Sutrisno',
                 'guardian_phone' => '+6281355550000',
+            ],
+        );
+    }
+
+    /**
+     * Satu akun tervalidasi yang sedang tidak menyewa (belum pernah
+     * memesan kamar) — fixture untuk menguji gerbang chat & badge
+     * "Belum Menyewa" di dashboard admin.
+     */
+    private function createNotRentingResident(): void
+    {
+        $user = User::query()->updateOrCreate(
+            ['email' => 'belummenyewa@kostakbar.id'],
+            [
+                'name' => 'Wawan Setiawan',
+                'password' => Hash::make('password'),
+                'role' => 'penghuni',
+                'status' => User::STATUS_NOT_RENTING,
+                'phone' => '+6289912345699',
+                'email_verified_at' => now(),
+            ],
+        );
+
+        Resident::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'full_name' => 'Wawan Setiawan',
+                'identity_number' => '35'.str_pad((string) 73119987654399, 14, '0', STR_PAD_LEFT),
+                'birth_date' => now()->subYears(25)->startOfYear(),
+                'address' => 'Jl. Veteran No.10, Kota Kediri',
+                'occupation' => 'Karyawan',
+                'guardian_name' => 'Bapak Sudarmono',
+                'guardian_phone' => '+6281355550099',
             ],
         );
     }

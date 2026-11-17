@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
+use App\Models\Booking;
 use App\Services\BookingService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
@@ -41,13 +43,17 @@ class BookingController extends Controller
             ->setStatusCode(201);
     }
 
+    /**
+     * POST /api/v1/bookings/{booking}/leave — akhiri sewa (keluar kost).
+     * Ditolak bila masih ada tagihan belum lunas.
+     */
     public function leave(Request $request, Booking $booking): JsonResponse
     {
         $booking = $this->bookings->leave($booking, $request->user());
 
         return response()->json([
             'message' => 'Anda telah keluar dari kost.',
-            'data' => $booking,   // SESUAIKAN: pakai BookingResource kalau sudah ada
+            'data' => new BookingResource($booking->loadMissing(['room.facilities', 'invoices'])),
         ]);
     }
 }
