@@ -14,8 +14,11 @@ use Illuminate\Support\Facades\Hash;
 /**
  * 20 penghuni aktif beserta akun, pemesanan, tagihan, dan pembayaran.
  *
- * Distribusi status pembayaran bulan Oktober 2026 (mengikuti desain UI):
- * 16 lunas, 1 menunggu verifikasi, 3 belum bayar.
+ * Distribusi status pembayaran bulan berjalan (mengikuti desain UI):
+ * 16 lunas, 1 menunggu verifikasi, 3 belum bayar. Ketiga penghuni
+ * "belum bayar" sekaligus menunggak — tagihan bulan sebelumnya juga
+ * belum dibayar dan sudah lewat jatuh tempo (bisa ditagih ulang lewat
+ * payments:remind, dan diblokir keluar kost sebelum lunas).
  */
 class ResidentSeeder extends Seeder
 {
@@ -185,20 +188,26 @@ class ResidentSeeder extends Seeder
      */
     private function createInvoiceHistory(Booking $booking, Room $room, int $index, int $receiptCounter): int
     {
-        // Dua bulan terakhir: lunas + pembayaran terverifikasi.
+        // Dua bulan terakhir: lunas + pembayaran terverifikasi — kecuali
+        // skenario menunggak: tagihan bulan lalu dibiarkan belum bayar
+        // (jatuh temponya, tgl 25 bulan lalu, pasti sudah terlewat).
         foreach ([2, 1] as $monthsAgo) {
             $date = now()->subMonths($monthsAgo);
+            $menunggak = $monthsAgo === 1
+                && in_array($index, self::UNPAID_INDEXES, true);
 
             $invoice = Invoice::query()->updateOrCreate(
                 ['booking_id' => $booking->id, 'period' => $date->format('Y-m')],
                 [
                     'amount' => $room->price_monthly,
                     'due_date' => $date->copy()->day(25),
-                    'status' => 'lunas',
+                    'status' => $menunggak ? 'belum_bayar' : 'lunas',
                 ],
             );
 
-            $this->createVerifiedPayment($invoice, $booking, $receiptCounter++);
+            if (! $menunggak) {
+                $this->createVerifiedPayment($invoice, $booking, $receiptCounter++);
+            }
         }
 
         // Bulan berjalan: sesuai skenario status per penghuni.
