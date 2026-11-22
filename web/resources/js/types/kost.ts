@@ -151,6 +151,8 @@ export type Payment = {
     invoice?: PaymentInvoice | null;
     resident_name?: string | null;
     room_number?: string | null;
+    booking_duration_months?: number | null;
+    booking_period_range?: string | null;
 };
 
 /**

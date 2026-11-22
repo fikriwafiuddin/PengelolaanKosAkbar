@@ -40,6 +40,9 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         ->whereNumber('payment')
         ->name('payments.verification.update');
 
+    // Data Tunggakan Penghuni (Menu Baru)
+    Route::get('arrears', [\App\Http\Controllers\Web\ArrearsController::class, 'index'])->name('arrears.index');
+
     // Chat grup & pengumuman resmi (Sprint 3)
     Route::get('chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('chat/rooms', [ChatController::class, 'storeRoom'])->name('chat.rooms.store');

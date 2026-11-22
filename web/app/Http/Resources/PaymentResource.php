@@ -54,6 +54,22 @@ class PaymentResource extends JsonResource
                 $this->relationLoaded('invoice') && $this->invoice?->relationLoaded('booking'),
                 fn () => $this->invoice?->booking?->room?->room_number,
             ),
+            'booking_duration_months' => $this->when(
+                $this->relationLoaded('invoice') && $this->invoice?->relationLoaded('booking'),
+                fn () => $this->invoice?->booking?->duration_months,
+            ),
+            'booking_period_range' => $this->when(
+                $this->relationLoaded('invoice') && $this->invoice?->relationLoaded('booking') && $this->invoice?->booking,
+                function () {
+                    $booking = $this->invoice->booking;
+                    $start = $booking->start_date;
+                    if (! $start) {
+                        return null;
+                    }
+                    $end = $start->copy()->addMonths($booking->duration_months)->subDay();
+                    return $start->locale('id')->translatedFormat('M Y').' - '.$end->locale('id')->translatedFormat('M Y');
+                },
+            ),
         ];
     }
 }

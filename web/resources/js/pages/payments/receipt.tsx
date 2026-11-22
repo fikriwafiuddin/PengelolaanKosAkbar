@@ -29,13 +29,17 @@ export default function PaymentReceipt({ payment, printedAt }: Props) {
         return () => clearTimeout(timer);
     }, []);
 
+    const paymentNote = payment.booking_duration_months
+        ? `Sewa kamar periode ${payment.invoice?.period_label ?? payment.invoice?.period} — Paket Sewa ${payment.booking_duration_months} Bulan${payment.booking_period_range ? ` (${payment.booking_period_range})` : ''}`
+        : `Sewa kamar periode ${payment.invoice?.period_label ?? payment.invoice?.period}`;
+
     const rows: [string, string][] = [
         ['No. Kuitansi', payment.receipt_no ?? '-'],
         ['Diterima Dari', payment.resident_name ?? '-'],
         ['Kamar', `Kamar ${payment.room_number ?? '-'}`],
         [
             'Untuk Pembayaran',
-            `Sewa kamar periode ${payment.invoice?.period_label ?? payment.invoice?.period}`,
+            paymentNote,
         ],
         ['Metode', payment.method_label],
         ['Tanggal Bayar', payment.paid_at_formatted ?? '-'],

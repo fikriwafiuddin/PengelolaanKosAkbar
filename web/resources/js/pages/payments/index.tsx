@@ -154,6 +154,72 @@ export default function PaymentsIndex({
                     description="Periksa nominal dan bukti bayar penghuni, terbitkan kuitansi saat diterima."
                 />
 
+                {/* Kartu Ringkasan Pemasukan & Verifikasi */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <Card className="py-0">
+                        <CardContent className="px-5 py-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                    Pemasukan Terverifikasi
+                                </p>
+                                <div className="rounded-lg bg-teal-500/10 p-2 text-teal-600 dark:text-teal-400">
+                                    <CheckCircle2 className="size-4" />
+                                </div>
+                            </div>
+                            <p className="mt-2 font-serif text-2xl font-bold tracking-tight text-teal-600 dark:text-teal-400">
+                                Rp {verifiedTotal.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {statusCounts['terverifikasi'] ?? 0} transaksi berhasil diverifikasi
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="py-0">
+                        <CardContent className="px-5 py-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                    Menunggu Verifikasi
+                                </p>
+                                <div className="rounded-lg bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
+                                    <ReceiptText className="size-4" />
+                                </div>
+                            </div>
+                            <p className="mt-2 font-serif text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+                                {statusCounts['pending'] ?? 0}{' '}
+                                <span className="text-sm font-normal text-muted-foreground">
+                                    transaksi
+                                </span>
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Perlu tindakan persetujuan admin
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="py-0">
+                        <CardContent className="px-5 py-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                    Pembayaran Ditolak
+                                </p>
+                                <div className="rounded-lg bg-red-500/10 p-2 text-red-600 dark:text-red-400">
+                                    <XCircle className="size-4" />
+                                </div>
+                            </div>
+                            <p className="mt-2 font-serif text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
+                                {statusCounts['ditolak'] ?? 0}{' '}
+                                <span className="text-sm font-normal text-muted-foreground">
+                                    transaksi
+                                </span>
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Bukti tidak valid / nominal keliru
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 {/* Tab status + filter periode + pencarian */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -272,6 +338,12 @@ export default function PaymentsIndex({
                                                 {payment.invoice?.period_label ??
                                                     payment.invoice?.period}
                                             </p>
+                                            {payment.booking_duration_months && (
+                                                <p className="text-xs font-semibold text-primary">
+                                                    Paket {payment.booking_duration_months} Bulan
+                                                    {payment.booking_period_range ? ` (${payment.booking_period_range})` : ''}
+                                                </p>
+                                            )}
                                             <p className="text-xs text-muted-foreground">
                                                 Jatuh tempo{' '}
                                                 {payment.invoice?.due_date_formatted}
