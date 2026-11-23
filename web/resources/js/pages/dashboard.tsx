@@ -320,9 +320,6 @@ export default function Dashboard({ overview }: Props) {
                                 <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                                     Grafik Tren Keuangan 6 Bulan (Pemasukan vs Pengeluaran)
                                 </p>
-                                <Badge variant="secondary" className="font-normal text-xs">
-                                    Sprint 4
-                                </Badge>
                             </div>
                             <div className="mt-4 flex items-end justify-between gap-3">
                                 {trend.map((point) => (
