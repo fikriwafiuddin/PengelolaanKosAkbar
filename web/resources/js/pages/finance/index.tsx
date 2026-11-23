@@ -2,7 +2,8 @@ import { Head, router } from '@inertiajs/react';
 import {
     ArrowDownRight,
     ArrowUpRight,
-    Download,
+    FileText,
+    Printer,
     TrendingUp,
     Wallet,
 } from 'lucide-react';
@@ -111,22 +112,26 @@ export default function FinanceIndex({
                         </select>
                         <Button variant="outline" asChild>
                             <a
-                                href={financeRoutes.exportMethod.url({
+                                href={financeRoutes.print.url({
                                     query: { type: 'pembayaran', month },
                                 })}
+                                target="_blank"
+                                rel="noopener noreferrer"
                             >
-                                <Download className="size-4" />
-                                Ekspor Pembayaran
+                                <FileText className="size-4" />
+                                Cetak PDF Pembayaran
                             </a>
                         </Button>
                         <Button variant="outline" asChild>
                             <a
-                                href={financeRoutes.exportMethod.url({
+                                href={financeRoutes.print.url({
                                     query: { type: 'kas', month },
                                 })}
+                                target="_blank"
+                                rel="noopener noreferrer"
                             >
-                                <Download className="size-4" />
-                                Ekspor Kas
+                                <Printer className="size-4" />
+                                Cetak PDF Kas & Laba
                             </a>
                         </Button>
                         {/* <Button variant="outline" asChild>

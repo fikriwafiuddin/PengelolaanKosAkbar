@@ -50,8 +50,8 @@ export default function PaymentReceipt({ payment, printedAt }: Props) {
         <>
             <Head title={`Kuitansi ${payment.receipt_no ?? payment.id}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-6 bg-white p-8 print:p-0">
-                <div className="flex items-center justify-between print:hidden">
+            <div className="min-h-screen bg-white text-neutral-900 p-8 print:p-0">
+                <div className="flex items-center justify-between pb-6 print:hidden">
                     <Button variant="outline" asChild>
                         <a href={paymentsRoutes.index.url()}>
                             ← Kembali ke Verifikasi Pembayaran

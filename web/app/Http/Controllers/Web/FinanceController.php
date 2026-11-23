@@ -77,6 +77,26 @@ class FinanceController extends Controller
     }
 
     /**
+     * GET /finance/print?type=pembayaran|kas&month=YYYY-MM — halaman cetak / simpan PDF
+     * untuk laporan keuangan (rekap kas atau laporan pembayaran).
+     */
+    public function print(Request $request): Response
+    {
+        $month = $this->resolveMonth($request->query('month'));
+        $type = $request->query('type') === 'kas' ? 'kas' : 'pembayaran';
+
+        return Inertia::render('finance/print', [
+            'type' => $type,
+            'month' => $month,
+            'summary' => $this->finance->summary($month),
+            'paymentReport' => $this->finance->paymentReport($month),
+            'expenseByCategory' => $this->finance->expenseByCategory($month),
+            'expenses' => $this->expensesWithLabels($month),
+            'printed_at' => now()->locale('id')->translatedFormat('d F Y, H:i'),
+        ]);
+    }
+
+    /**
      * GET /finance/export?type=pembayaran|kas&month=YYYY-MM — unduh
      * laporan sebagai berkas CSV (dibuka Excel/Sheets).
      */

@@ -53,9 +53,10 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         ->whereNumber('message')
         ->name('chat.messages.complaint-status');
 
-    // Laporan keuangan: rekap kas, laba + ekspor (Sprint 4)
+    // Laporan keuangan: rekap kas, laba + ekspor & cetak PDF (Sprint 4)
     Route::get('finance', [FinanceController::class, 'index'])->name('finance.index');
     Route::get('finance/export', [FinanceController::class, 'export'])->name('finance.export');
+    Route::get('finance/print', [FinanceController::class, 'print'])->name('finance.print');
 
     // Pengeluaran operasional: halaman sendiri (Rev-2)
     Route::get('expenses', [FinanceController::class, 'expenseIndex'])->name('expenses.index');
