@@ -1,37 +1,60 @@
 import { Head, Link } from '@inertiajs/react';
 import {
-    AlertTriangle,
+    AlertCircle,
+    ArrowDownRight,
+    ArrowUpRight,
     BedDouble,
-    Clock,
     KeyRound,
+    TrendingDown,
+    TrendingUp,
     UserCheck,
     UserMinus,
     UserPlus,
     UserRound,
+    Wallet,
 } from 'lucide-react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { dashboard as dashboardRoute } from '@/routes';
+import * as arrearsRoutes from '@/routes/arrears';
+import * as financeRoutes from '@/routes/finance';
 import * as paymentsRoutes from '@/routes/payments';
-import { formatDate } from '@/lib/format';
+import * as roomsRoutes from '@/routes/rooms';
+import * as residentsRoutes from '@/routes/residents';
 import type { BreadcrumbItem } from '@/types';
-import type { ResidentStats, RoomStats, TrendPoint, OverdueUnpaid } from '@/types/kost';
+import type { ResidentStats, RoomStats, TrendPoint } from '@/types/kost';
+
+type FinanceSummary = {
+    month: string;
+    month_label: string;
+    income: number;
+    previous_income: number;
+    income_change: number | null;
+    expense: number;
+    previous_expense: number;
+    profit: number;
+    previous_profit: number;
+};
+
+type ArrearsSummary = {
+    total_amount: number;
+    total_amount_formatted: string;
+    total_invoices: number;
+    resident_count: number;
+};
 
 type Props = {
     overview: {
         rooms: RoomStats;
         occupancy: number;
         residents: ResidentStats;
+        finance_summary: FinanceSummary;
         trend: TrendPoint[];
-        overdue_unpaid: OverdueUnpaid[];
-        latest_residents: {
-            name: string;
-            room: string | null;
-            start_date: string | null;
-        }[];
+        arrears_summary: ArrearsSummary;
     };
 };
 
@@ -47,9 +70,9 @@ export default function Dashboard({ overview }: Props) {
         rooms: roomStats,
         occupancy,
         residents,
+        finance_summary: financeSummary,
         trend,
-        overdue_unpaid: overdueUnpaid,
-        latest_residents: latestResidents,
+        arrears_summary: arrearsSummary,
     } = overview;
 
     const maxTrend = Math.max(
@@ -63,16 +86,131 @@ export default function Dashboard({ overview }: Props) {
             <Head title="Dashboard" />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
-                <Heading
-                    title="Dashboard Kost Akbar"
-                    description="Ringkasan okupansi kamar, keuangan, dan aktivitas penghuni."
-                />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Heading
+                        title="Dashboard Kost Akbar"
+                        description="Ringkasan okupansi kamar, keuangan kos, dan status penghuni."
+                    />
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={financeRoutes.index()}>
+                                <Wallet className="size-4" />
+                                Laporan Keuangan
+                            </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={arrearsRoutes.index()}>
+                                <AlertCircle className="size-4 text-red-500" />
+                                Data Tunggakan
+                            </Link>
+                        </Button>
+                    </div>
+                </div>
 
-                {/* ── Kartu ringkasan ── */}
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                    {/* Okupansi */}
-                    <Card className="gap-3 xl:col-span-2">
-                        <CardHeader className="flex-row items-center justify-between">
+                {/* ── BAGIAN 1: Ringkasan Keuangan Kos (Bulan Berjalan) ── */}
+                <div>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                            Ringkasan Keuangan — {financeSummary.month_label}
+                        </h2>
+                        <Link
+                            href={financeRoutes.index()}
+                            className="text-xs text-primary hover:underline"
+                        >
+                            Kelola di Laporan Keuangan →
+                        </Link>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {/* Pemasukan Sewa */}
+                        <Card className="py-0">
+                            <CardContent className="px-5 py-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                        Pemasukan Sewa
+                                    </p>
+                                    <div className="rounded-lg bg-teal-500/10 p-2 text-teal-600 dark:text-teal-400">
+                                        <ArrowUpRight className="size-4" />
+                                    </div>
+                                </div>
+                                <p className="mt-2 font-serif text-2xl font-bold tracking-tight text-teal-600 dark:text-teal-400">
+                                    {rupiah(financeSummary.income)}
+                                </p>
+                                {financeSummary.income_change !== null && (
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {financeSummary.income_change >= 0 ? '▲' : '▼'}{' '}
+                                        {Math.abs(financeSummary.income_change)}% vs bulan lalu
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Pengeluaran Operasional */}
+                        <Card className="py-0">
+                            <CardContent className="px-5 py-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                        Pengeluaran
+                                    </p>
+                                    <div className="rounded-lg bg-red-500/10 p-2 text-red-600 dark:text-red-400">
+                                        <ArrowDownRight className="size-4" />
+                                    </div>
+                                </div>
+                                <p className="mt-2 font-serif text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
+                                    {rupiah(financeSummary.expense)}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Biaya operasional kos
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        {/* Laba Bersih */}
+                        <Card className="py-0">
+                            <CardContent className="px-5 py-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                        Laba Bersih
+                                    </p>
+                                    <div className="rounded-lg bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
+                                        <TrendingUp className="size-4" />
+                                    </div>
+                                </div>
+                                <p className="mt-2 font-serif text-2xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
+                                    {rupiah(financeSummary.profit)}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Kas masuk setelah pengeluaran
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        {/* Total Uang Menunggak */}
+                        <Card className="py-0 border-red-200 dark:border-red-900/50">
+                            <CardContent className="px-5 py-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                        Total Menunggak
+                                    </p>
+                                    <div className="rounded-lg bg-red-500/15 p-2 text-red-600 dark:text-red-400">
+                                        <AlertCircle className="size-4" />
+                                    </div>
+                                </div>
+                                <p className="mt-2 font-serif text-2xl font-bold tracking-tight text-red-600 dark:text-red-400">
+                                    {arrearsSummary.total_amount_formatted}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {arrearsSummary.resident_count} penghuni ({arrearsSummary.total_invoices} tagihan)
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                {/* ── BAGIAN 2: Ringkasan Okupansi Kamar & Penghuni ── */}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {/* Okupansi Kamar */}
+                    <Card className="gap-3">
+                        <CardHeader className="flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                 Okupansi Kamar
                             </CardTitle>
@@ -90,16 +228,19 @@ export default function Dashboard({ overview }: Props) {
                             <Progress value={occupancy} />
                             <p className="text-xs text-muted-foreground">
                                 Terisi {occupancy}% ·{' '}
-                                <span className="font-medium text-primary">
+                                <Link
+                                    href={roomsRoutes.index()}
+                                    className="font-medium text-primary hover:underline"
+                                >
                                     {roomStats.kosong} kamar kosong
-                                </span>
+                                </Link>
                             </p>
                         </CardContent>
                     </Card>
 
-                    {/* Penghuni aktif */}
+                    {/* Penghuni Aktif */}
                     <Card className="gap-3">
-                        <CardHeader className="flex-row items-center justify-between">
+                        <CardHeader className="flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                 Penghuni Aktif
                             </CardTitle>
@@ -116,14 +257,16 @@ export default function Dashboard({ overview }: Props) {
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 {residents.lunas} lunas ·{' '}
-                                {residents.belum_bayar} belum bayar
+                                <span className="text-red-500 font-medium">
+                                    {residents.belum_bayar} belum bayar
+                                </span>
                             </p>
                         </CardContent>
                     </Card>
 
-                    {/* Calon penghuni — Rev-5 */}
+                    {/* Calon Penghuni */}
                     <Card className="gap-3">
-                        <CardHeader className="flex-row items-center justify-between">
+                        <CardHeader className="flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                 Calon Penghuni
                             </CardTitle>
@@ -139,14 +282,14 @@ export default function Dashboard({ overview }: Props) {
                                 </span>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Sudah divalidasi, belum punya kamar.
+                                Akun divalidasi, belum memesan kamar.
                             </p>
                         </CardContent>
                     </Card>
 
-                    {/* Penghuni keluar — Rev-5 */}
+                    {/* Penghuni yang Sudah Keluar */}
                     <Card className="gap-3">
-                        <CardHeader className="flex-row items-center justify-between">
+                        <CardHeader className="flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                 Sudah Keluar
                             </CardTitle>
@@ -162,50 +305,52 @@ export default function Dashboard({ overview }: Props) {
                                 </span>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Penghuni yang sudah selesai sewa.
+                                Penghuni yang telah menyelesaikan sewa.
                             </p>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* ── Grafik tren keuangan 6 bulan (Rev-3) + Belum bayar (Rev-4) ── */}
-                <div className="grid gap-4 lg:grid-cols-5">
-                    {/* Tren keuangan */}
+                {/* ── BAGIAN 3: Grafik Tren Keuangan & Okupansi per Tipe Kamar ── */}
+                <div className="grid gap-6 lg:grid-cols-5">
+                    {/* Grafik Tren Keuangan 6 Bulan */}
                     <Card className="py-0 lg:col-span-3">
                         <CardContent className="px-6 py-5">
-                            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                Tren Keuangan 6 Bulan
-                            </p>
-                            <div className="mt-4 flex items-end justify-between gap-2">
+                            <div className="flex items-center justify-between pb-2">
+                                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                    Grafik Tren Keuangan 6 Bulan (Pemasukan vs Pengeluaran)
+                                </p>
+                            </div>
+                            <div className="mt-4 flex items-end justify-between gap-3">
                                 {trend.map((point) => (
                                     <div
                                         key={point.month}
                                         className="flex flex-1 flex-col items-center gap-1.5"
                                         title={`${point.month_label}: ${rupiah(point.income)} masuk · ${rupiah(point.expense)} keluar · laba ${rupiah(point.profit)}`}
                                     >
-                                        <div className="flex h-28 w-full items-end justify-center gap-1">
+                                        <div className="flex h-36 w-full items-end justify-center gap-1.5">
                                             <div
-                                                className="w-5/12 rounded-t bg-teal-600/80"
+                                                className="w-5/12 rounded-t bg-teal-600/80 transition-all hover:bg-teal-600"
                                                 style={{
                                                     height: `${Math.max(
                                                         (point.income / maxTrend) * 100,
-                                                        2,
+                                                        3,
                                                     )}%`,
                                                 }}
                                             />
                                             <div
-                                                className="w-5/12 rounded-t bg-red-400/70"
+                                                className="w-5/12 rounded-t bg-red-400/70 transition-all hover:bg-red-400"
                                                 style={{
                                                     height: `${Math.max(
                                                         (point.expense / maxTrend) * 100,
-                                                        2,
+                                                        3,
                                                     )}%`,
                                                 }}
                                             />
                                         </div>
                                         <span
                                             className={cn(
-                                                'text-[0.65rem]',
+                                                'text-[0.7rem]',
                                                 point.month === currentMonth
                                                     ? 'font-bold text-foreground'
                                                     : 'text-muted-foreground',
@@ -216,143 +361,66 @@ export default function Dashboard({ overview }: Props) {
                                     </div>
                                 ))}
                             </div>
-                            <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1.5">
-                                    <span className="size-2.5 rounded-sm bg-teal-600/80" />
-                                    Pemasukan
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                    <span className="size-2.5 rounded-sm bg-red-400/70" />
-                                    Pengeluaran
-                                </span>
+                            <div className="mt-4 flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-4">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="size-2.5 rounded-sm bg-teal-600/80" />
+                                        Pemasukan
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="size-2.5 rounded-sm bg-red-400/70" />
+                                        Pengeluaran
+                                    </span>
+                                </div>
+                                <Link
+                                    href={financeRoutes.index()}
+                                    className="text-primary hover:underline"
+                                >
+                                    Rincian Laporan Kas →
+                                </Link>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Penghuni belum bayar — Rev-4 */}
+                    {/* Ringkasan Okupansi per Tipe Kamar */}
                     <Card className="lg:col-span-2">
-                        <CardHeader className="flex-row items-center justify-between pb-2">
+                        <CardHeader className="pb-3">
                             <CardTitle className="font-serif text-base">
-                                Belum Bayar (Jatuh Tempo)
+                                Okupansi per Tipe Kamar
                             </CardTitle>
-                            <AlertTriangle className="size-4 text-amber-500" />
                         </CardHeader>
-                        <CardContent className="space-y-2">
-                            {overdueUnpaid.length === 0 ? (
-                                <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-3 dark:border-green-900 dark:bg-green-950/30">
-                                    <UserCheck className="size-4 shrink-0 text-green-600 dark:text-green-400" />
-                                    <p className="text-sm text-green-700 dark:text-green-400">
-                                        Semua penghuni sudah membayar tepat waktu.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="max-h-56 space-y-2 overflow-y-auto">
-                                    {overdueUnpaid.map((item) => (
-                                        <div
-                                            key={item.invoice_id}
-                                            className="flex items-start justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 dark:border-amber-900 dark:bg-amber-950/20"
-                                        >
-                                            <div className="min-w-0">
-                                                <p className="truncate text-sm font-medium">
-                                                    {item.resident_name}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Kamar {item.room_number} ·{' '}
-                                                    {item.period_label}
-                                                </p>
-                                                <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                                                    <Clock className="size-3" />
-                                                    Jatuh tempo {item.due_date_formatted}
-                                                </p>
-                                            </div>
-                                            <span className="shrink-0 text-sm font-semibold text-red-600 dark:text-red-400">
-                                                {item.amount_formatted}
+                        <CardContent className="space-y-4">
+                            {roomStats.by_type.map((stat) => {
+                                const occupied = stat.total - stat.kosong;
+                                const percent =
+                                    stat.total > 0
+                                        ? Math.round((occupied / stat.total) * 100)
+                                        : 0;
+
+                                return (
+                                    <div key={stat.type} className="space-y-1.5">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="font-medium">
+                                                {stat.type}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {occupied}/{stat.total} terisi ({percent}%)
                                             </span>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                            {overdueUnpaid.length > 0 && (
-                                <Link
-                                    href={paymentsRoutes.index()}
-                                    className="mt-1 block text-center text-xs text-primary hover:underline"
-                                >
-                                    Lihat semua di Verifikasi Pembayaran →
-                                </Link>
-                            )}
+                                        <Progress value={percent} />
+                                    </div>
+                                );
+                            })}
+                            <div className="pt-2">
+                                <Button variant="outline" size="sm" asChild className="w-full">
+                                    <Link href={roomsRoutes.index()}>
+                                        Kelola Data Kamar →
+                                    </Link>
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
-
-                {/* ── Okupansi per tipe kamar ── */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="font-serif">
-                            Okupansi per Tipe Kamar
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                        {roomStats.by_type.map((stat) => {
-                            const occupied = stat.total - stat.kosong;
-                            const percent =
-                                stat.total > 0
-                                    ? Math.round((occupied / stat.total) * 100)
-                                    : 0;
-
-                            return (
-                                <div key={stat.type} className="space-y-1.5">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="font-medium">
-                                            {stat.type}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                            {occupied}/{stat.total} terisi ·{' '}
-                                            {stat.kosong} kosong
-                                        </span>
-                                    </div>
-                                    <Progress value={percent} />
-                                </div>
-                            );
-                        })}
-                    </CardContent>
-                </Card>
-
-                {/* ── Penghuni terbaru ── */}
-                <Card>
-                    <CardHeader className="flex-row items-center justify-between">
-                        <CardTitle className="font-serif">
-                            Penghuni Terbaru
-                        </CardTitle>
-                        <Badge variant="secondary" className="font-normal">
-                            Lihat semua di menu Data Penghuni
-                        </Badge>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            {latestResidents.map((item) => (
-                                <div
-                                    key={item.name}
-                                    className="flex items-center justify-between rounded-lg border border-border/70 px-3 py-2"
-                                >
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            {item.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Mulai sewa{' '}
-                                            {formatDate(item.start_date)}
-                                        </p>
-                                    </div>
-                                    {item.room && (
-                                        <Badge variant="outline">
-                                            Kamar {item.room}
-                                        </Badge>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
         </>
     );

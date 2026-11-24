@@ -29,13 +29,17 @@ export default function PaymentReceipt({ payment, printedAt }: Props) {
         return () => clearTimeout(timer);
     }, []);
 
+    const paymentNote = payment.booking_duration_months
+        ? `Sewa kamar periode ${payment.invoice?.period_label ?? payment.invoice?.period} — Paket Sewa ${payment.booking_duration_months} Bulan${payment.booking_period_range ? ` (${payment.booking_period_range})` : ''}`
+        : `Sewa kamar periode ${payment.invoice?.period_label ?? payment.invoice?.period}`;
+
     const rows: [string, string][] = [
         ['No. Kuitansi', payment.receipt_no ?? '-'],
         ['Diterima Dari', payment.resident_name ?? '-'],
         ['Kamar', `Kamar ${payment.room_number ?? '-'}`],
         [
             'Untuk Pembayaran',
-            `Sewa kamar periode ${payment.invoice?.period_label ?? payment.invoice?.period}`,
+            paymentNote,
         ],
         ['Metode', payment.method_label],
         ['Tanggal Bayar', payment.paid_at_formatted ?? '-'],
@@ -46,8 +50,8 @@ export default function PaymentReceipt({ payment, printedAt }: Props) {
         <>
             <Head title={`Kuitansi ${payment.receipt_no ?? payment.id}`} />
 
-            <div className="flex h-full flex-1 flex-col gap-6 bg-white p-8 print:p-0">
-                <div className="flex items-center justify-between print:hidden">
+            <div className="min-h-screen bg-white text-neutral-900 p-8 print:p-0">
+                <div className="flex items-center justify-between pb-6 print:hidden">
                     <Button variant="outline" asChild>
                         <a href={paymentsRoutes.index.url()}>
                             ← Kembali ke Verifikasi Pembayaran

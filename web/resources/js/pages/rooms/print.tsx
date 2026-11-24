@@ -43,8 +43,8 @@ export default function RoomsPrint({ rooms: allRooms, printed_at }: Props) {
         <>
             <Head title="Cetak Katalog Kamar" />
 
-            <div className="flex h-full flex-1 flex-col gap-6 bg-white p-8 print:p-0">
-                <div className="flex items-center justify-between print:hidden">
+            <div className="min-h-screen bg-white text-neutral-900 p-8 print:p-0">
+                <div className="flex items-center justify-between pb-6 print:hidden">
                     <Button variant="outline" asChild>
                         <a href={roomsRoutes.index.url()}>← Kembali ke Data Kamar</a>
                     </Button>

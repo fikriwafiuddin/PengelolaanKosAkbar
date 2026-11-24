@@ -1,9 +1,10 @@
-import { BedDouble, LayoutGrid, MessageSquareText, ReceiptText, Users, Wallet, TrendingDown } from 'lucide-react';
+import { BedDouble, LayoutGrid, MessageSquareText, ReceiptText, Users, Wallet, TrendingDown, AlertCircle } from 'lucide-react';
 
 import { dashboard } from '@/routes';
 import * as roomsRoutes from '@/routes/rooms';
 import * as residentsRoutes from '@/routes/residents';
 import * as paymentsRoutes from '@/routes/payments';
+import * as arrearsRoutes from '@/routes/arrears';
 import * as chatRoutes from '@/routes/chat';
 import * as financeRoutes from '@/routes/finance';
 import * as expensesRoutes from '@/routes/expenses';
@@ -32,6 +33,11 @@ export const mainNavItems: NavItem[] = [
         title: 'Verifikasi Pembayaran',
         href: paymentsRoutes.index(),
         icon: ReceiptText,
+    },
+    {
+        title: 'Data Tunggakan',
+        href: arrearsRoutes.index(),
+        icon: AlertCircle,
     },
     {
         title: 'Chat & Pengumuman',
