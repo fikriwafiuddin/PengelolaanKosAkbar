@@ -7,6 +7,19 @@ import {
     TrendingUp,
     Wallet,
 } from 'lucide-react';
+import {
+    Bar,
+    CartesianGrid,
+    Cell,
+    ComposedChart,
+    Line,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -39,6 +52,12 @@ type TrendPoint = {
     profit: number;
 };
 
+type ExpenseCategoryRow = {
+    category: string;
+    total_items: number;
+    total_amount: number;
+};
+
 type PaymentReportRow = {
     id: number;
     resident_name: string;
@@ -56,6 +75,7 @@ type Props = {
     months: MonthOption[];
     trend: TrendPoint[];
     paymentReport: PaymentReportRow[];
+    expenseByCategory: ExpenseCategoryRow[];
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -66,9 +86,46 @@ const breadcrumbs: BreadcrumbItem[] = [
 const rupiah = (value: number) =>
     'Rp ' + value.toLocaleString('id-ID', { maximumFractionDigits: 0 });
 
+/** Nominal ringkas untuk label sumbu grafik (1,2 jt / 450 rb). */
+const compactRupiah = (value: number) => {
+    if (Math.abs(value) >= 1_000_000) {
+        return (
+            (value / 1_000_000).toLocaleString('id-ID', {
+                maximumFractionDigits: 1,
+            }) + ' jt'
+        );
+    }
+
+    if (Math.abs(value) >= 1_000) {
+        return Math.round(value / 1_000) + ' rb';
+    }
+
+    return String(value);
+};
+
+/** Label bulan penuh dari periode YYYY-MM (untuk tooltip grafik). */
+const fullMonthLabel = (period: string) =>
+    new Date(`${period}-01T00:00:00`).toLocaleDateString('id-ID', {
+        month: 'long',
+        year: 'numeric',
+    });
+
+/** Warna seri grafik — token tema, otomatis ikut dark mode. */
+const INCOME_COLOR = 'var(--chart-2)'; // teal
+const EXPENSE_COLOR = 'var(--destructive)'; // merah bata
+const PROFIT_COLOR = 'var(--chart-5)'; // oranye
+const CATEGORY_COLORS = [
+    'var(--chart-1)',
+    'var(--chart-2)',
+    'var(--chart-3)',
+    'var(--chart-4)',
+    'var(--chart-5)',
+];
+
 /**
  * Laporan Keuangan: ringkasan pemasukan-pengeluaran-laba,
- * tren 6 bulan, laporan pembayaran sewa, dan ekspor CSV.
+ * grafik tren 6 bulan & komposisi pengeluaran per kategori,
+ * laporan pembayaran sewa, dan ekspor CSV.
  * Pencatatan pengeluaran dipindah ke halaman /expenses (Rev-2).
  */
 export default function FinanceIndex({
@@ -77,6 +134,7 @@ export default function FinanceIndex({
     months,
     trend,
     paymentReport,
+    expenseByCategory,
 }: Props) {
     function changeMonth(next: string) {
         router.get(
@@ -85,8 +143,6 @@ export default function FinanceIndex({
             { preserveState: true },
         );
     }
-
-    const maxTrend = Math.max(...trend.map((t) => Math.max(t.income, t.expense)), 1);
 
     return (
         <>
@@ -158,11 +214,12 @@ export default function FinanceIndex({
                         change={
                             summary.previous_expense > 0
                                 ? Math.round(
-                                    ((summary.expense - summary.previous_expense) /
-                                        summary.previous_expense) *
-                                    100 *
-                                    10,
-                                ) / 10
+                                      ((summary.expense -
+                                          summary.previous_expense) /
+                                          summary.previous_expense) *
+                                          100 *
+                                          10,
+                                  ) / 10
                                 : null
                         }
                         icon={<ArrowDownRight className="size-4" />}
@@ -174,11 +231,12 @@ export default function FinanceIndex({
                         change={
                             summary.previous_profit !== 0
                                 ? Math.round(
-                                    ((summary.profit - summary.previous_profit) /
-                                        Math.abs(summary.previous_profit)) *
-                                    100 *
-                                    10,
-                                ) / 10
+                                      ((summary.profit -
+                                          summary.previous_profit) /
+                                          Math.abs(summary.previous_profit)) *
+                                          100 *
+                                          10,
+                                  ) / 10
                                 : null
                         }
                         icon={<TrendingUp className="size-4" />}
@@ -186,58 +244,235 @@ export default function FinanceIndex({
                     />
                 </div>
 
-                {/* Tren 6 bulan */}
-                {/* <Card className="py-0">
-                    <CardContent className="px-6 py-5">
-                        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                            Tren 6 Bulan (pemasukan vs pengeluaran)
-                        </p>
-                        <div className="mt-4 flex items-end justify-between gap-3">
-                            {trend.map((point) => (
-                                <div
-                                    key={point.month}
-                                    className="flex flex-1 flex-col items-center gap-1.5"
-                                    title={`${point.month_label}: ${rupiah(point.income)} masuk · ${rupiah(point.expense)} keluar · laba ${rupiah(point.profit)}`}
-                                >
-                                    <div className="flex h-32 w-full items-end justify-center gap-1.5">
-                                        <div
-                                            className="w-1/3 rounded-t bg-teal-600/80"
-                                            style={{
-                                                height: `${Math.max((point.income / maxTrend) * 100, 2)}%`,
-                                            }}
-                                        />
-                                        <div
-                                            className="w-1/3 rounded-t bg-red-400/70"
-                                            style={{
-                                                height: `${Math.max((point.expense / maxTrend) * 100, 2)}%`,
-                                            }}
-                                        />
-                                    </div>
-                                    <span
-                                        className={cn(
-                                            'text-[0.7rem]',
-                                            point.month === month
-                                                ? 'font-bold text-foreground'
-                                                : 'text-muted-foreground',
-                                        )}
+                {/* Grafik: tren 6 bulan + komposisi pengeluaran */}
+                <div className="grid gap-4 xl:grid-cols-5">
+                    <Card className="py-0 xl:col-span-3">
+                        <CardContent className="px-6 py-5">
+                            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                Tren 6 Bulan — Pemasukan vs Pengeluaran
+                            </p>
+                            <div className="mt-4 h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart
+                                        data={trend}
+                                        margin={{
+                                            top: 8,
+                                            right: 8,
+                                            left: 0,
+                                            bottom: 0,
+                                        }}
                                     >
-                                        {point.month_label}
-                                    </span>
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            vertical={false}
+                                            stroke="var(--border)"
+                                        />
+                                        <XAxis
+                                            dataKey="month_label"
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickMargin={8}
+                                            tick={{
+                                                fontSize: 11,
+                                                fill: 'var(--muted-foreground)',
+                                            }}
+                                        />
+                                        <YAxis
+                                            width={52}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tick={{
+                                                fontSize: 11,
+                                                fill: 'var(--muted-foreground)',
+                                            }}
+                                            tickFormatter={compactRupiah}
+                                            domain={[
+                                                (dataMin: number) =>
+                                                    Math.min(dataMin, 0),
+                                                (dataMax: number) =>
+                                                    Math.max(dataMax, 0),
+                                            ]}
+                                        />
+                                        <Tooltip
+                                            content={<TrendTooltip />}
+                                            cursor={{ fill: 'var(--accent)' }}
+                                        />
+                                        <Bar
+                                            dataKey="income"
+                                            name="Pemasukan"
+                                            fill={INCOME_COLOR}
+                                            radius={[4, 4, 0, 0]}
+                                            maxBarSize={26}
+                                        />
+                                        <Bar
+                                            dataKey="expense"
+                                            name="Pengeluaran"
+                                            fill={EXPENSE_COLOR}
+                                            radius={[4, 4, 0, 0]}
+                                            maxBarSize={26}
+                                        />
+                                        <Line
+                                            dataKey="profit"
+                                            name="Laba"
+                                            stroke={PROFIT_COLOR}
+                                            strokeWidth={2}
+                                            dot={false}
+                                            activeDot={{ r: 4 }}
+                                        />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1.5">
+                                    <span
+                                        className="size-2.5 rounded-sm"
+                                        style={{
+                                            backgroundColor: INCOME_COLOR,
+                                        }}
+                                    />
+                                    Pemasukan
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span
+                                        className="size-2.5 rounded-sm"
+                                        style={{
+                                            backgroundColor: EXPENSE_COLOR,
+                                        }}
+                                    />
+                                    Pengeluaran
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span
+                                        className="size-2.5 rounded-full"
+                                        style={{
+                                            backgroundColor: PROFIT_COLOR,
+                                        }}
+                                    />
+                                    Laba
+                                </span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="py-0 xl:col-span-2">
+                        <CardContent className="px-6 py-5">
+                            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                Komposisi Pengeluaran — {summary.month_label}
+                            </p>
+                            {expenseByCategory.length > 0 ? (
+                                <div className="mt-4 flex flex-col items-center gap-5">
+                                    <div className="relative h-40 w-40 shrink-0">
+                                        <ResponsiveContainer
+                                            width="100%"
+                                            height="100%"
+                                        >
+                                            <PieChart>
+                                                <Tooltip
+                                                    content={
+                                                        <CategoryTooltip
+                                                            total={
+                                                                summary.expense
+                                                            }
+                                                        />
+                                                    }
+                                                />
+                                                <Pie
+                                                    data={expenseByCategory}
+                                                    dataKey="total_amount"
+                                                    nameKey="category"
+                                                    innerRadius="60%"
+                                                    outerRadius="96%"
+                                                    paddingAngle={2}
+                                                    stroke="var(--card)"
+                                                    strokeWidth={2}
+                                                >
+                                                    {expenseByCategory.map(
+                                                        (entry, index) => (
+                                                            <Cell
+                                                                key={
+                                                                    entry.category
+                                                                }
+                                                                fill={
+                                                                    CATEGORY_COLORS[
+                                                                        index %
+                                                                            CATEGORY_COLORS.length
+                                                                    ]
+                                                                }
+                                                            />
+                                                        ),
+                                                    )}
+                                                </Pie>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                                            <span className="text-[0.65rem] text-muted-foreground">
+                                                Total
+                                            </span>
+                                            <span className="text-sm font-bold">
+                                                {compactRupiah(summary.expense)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="w-full space-y-2.5">
+                                        {expenseByCategory.map(
+                                            (entry, index) => {
+                                                const share =
+                                                    summary.expense > 0
+                                                        ? (entry.total_amount /
+                                                              summary.expense) *
+                                                          100
+                                                        : 0;
+
+                                                return (
+                                                    <div
+                                                        key={entry.category}
+                                                        className="flex items-center gap-2 text-sm"
+                                                    >
+                                                        <span
+                                                            className="size-2.5 shrink-0 rounded-sm"
+                                                            style={{
+                                                                backgroundColor:
+                                                                    CATEGORY_COLORS[
+                                                                        index %
+                                                                            CATEGORY_COLORS.length
+                                                                    ],
+                                                            }}
+                                                        />
+                                                        <span className="min-w-0 flex-1 truncate">
+                                                            {entry.category}
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {' '}
+                                                                (
+                                                                {
+                                                                    entry.total_items
+                                                                }
+                                                                x)
+                                                            </span>
+                                                        </span>
+                                                        <span className="shrink-0 font-semibold">
+                                                            {rupiah(
+                                                                entry.total_amount,
+                                                            )}
+                                                        </span>
+                                                        <span className="w-11 shrink-0 text-right text-xs text-muted-foreground">
+                                                            {Math.round(share)}%
+                                                        </span>
+                                                    </div>
+                                                );
+                                            },
+                                        )}
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                        <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1.5">
-                                <span className="size-2.5 rounded-sm bg-teal-600/80" />
-                                Pemasukan
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                                <span className="size-2.5 rounded-sm bg-red-400/70" />
-                                Pengeluaran
-                            </span>
-                        </div>
-                    </CardContent>
-                </Card> */}
+                            ) : (
+                                <div className="flex h-40 items-center justify-center">
+                                    <p className="text-sm text-muted-foreground">
+                                        Belum ada pengeluaran bulan ini.
+                                    </p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
 
                 {/* Laporan pembayaran sewa */}
                 <Card className="py-0">
@@ -315,6 +550,115 @@ export default function FinanceIndex({
 FinanceIndex.layout = { breadcrumbs };
 
 /**
+ * Tooltip grafik tren: rincian pemasukan, pengeluaran, dan laba
+ * bulan yang di-hover.
+ */
+function TrendTooltip({
+    active,
+    payload,
+}: {
+    active?: boolean;
+    payload?: Array<{ payload: TrendPoint }>;
+}) {
+    if (!active || !payload?.length) {
+        return null;
+    }
+
+    const point = payload[0]?.payload;
+
+    if (!point) {
+        return null;
+    }
+
+    return (
+        <div className="rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+            <p className="font-semibold">{fullMonthLabel(point.month)}</p>
+            <div className="mt-1.5 space-y-1">
+                <TrendTooltipRow
+                    label="Pemasukan"
+                    value={point.income}
+                    color={INCOME_COLOR}
+                />
+                <TrendTooltipRow
+                    label="Pengeluaran"
+                    value={point.expense}
+                    color={EXPENSE_COLOR}
+                />
+                <TrendTooltipRow
+                    label="Laba"
+                    value={point.profit}
+                    color={PROFIT_COLOR}
+                />
+            </div>
+        </div>
+    );
+}
+
+function TrendTooltipRow({
+    label,
+    value,
+    color,
+}: {
+    label: string;
+    value: number;
+    color: string;
+}) {
+    return (
+        <div className="flex items-center justify-between gap-6">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span
+                    className="size-2 rounded-sm"
+                    style={{ backgroundColor: color }}
+                />
+                {label}
+            </span>
+            <span
+                className={cn('font-semibold', value < 0 && 'text-destructive')}
+            >
+                {rupiah(value)}
+            </span>
+        </div>
+    );
+}
+
+/**
+ * Tooltip donat komposisi pengeluaran: kategori, jumlah catatan,
+ * dan persentase terhadap total.
+ */
+function CategoryTooltip({
+    active,
+    payload,
+    total,
+}: {
+    active?: boolean;
+    payload?: Array<{ value: number; payload: ExpenseCategoryRow }>;
+    total: number;
+}) {
+    if (!active || !payload?.length) {
+        return null;
+    }
+
+    const entry = payload[0];
+    const row = entry?.payload;
+
+    if (!entry || !row) {
+        return null;
+    }
+
+    const share = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+
+    return (
+        <div className="rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+            <p className="font-semibold">{row.category}</p>
+            <p className="mt-0.5 text-muted-foreground">
+                {row.total_items} catatan · {share}%
+            </p>
+            <p className="font-semibold">{rupiah(entry.value)}</p>
+        </div>
+    );
+}
+
+/**
  * Kartu ringkasan: nominal besar + perubahan vs bulan lalu.
  */
 function SummaryCard({
@@ -364,7 +708,8 @@ function SummaryCard({
                                 : 'text-red-600 dark:text-red-400',
                         )}
                     >
-                        {change >= 0 ? '▲' : '▼'} {Math.abs(change)}% vs bulan lalu
+                        {change >= 0 ? '▲' : '▼'} {Math.abs(change)}% vs bulan
+                        lalu
                     </p>
                 )}
             </CardContent>

@@ -25,18 +25,20 @@ class FinanceController extends Controller
 
     /**
      * GET /finance?month=YYYY-MM — halaman Laporan Keuangan.
-     * Menampilkan ringkasan kas, tren 6 bulan, dan laporan pembayaran sewa.
+     * Menampilkan ringkasan kas, grafik tren 6 bulan, komposisi
+     * pengeluaran per kategori, dan laporan pembayaran sewa.
      */
     public function index(Request $request): Response
     {
         $month = $this->resolveMonth($request->query('month'));
 
         return Inertia::render('finance/index', [
-            'month'         => $month,
-            'summary'       => $this->finance->summary($month),
-            'months'        => $this->finance->availableMonths(),
-            'trend'         => $this->finance->trend($month),
-            'paymentReport' => $this->finance->paymentReport($month),
+            'month'             => $month,
+            'summary'           => $this->finance->summary($month),
+            'months'            => $this->finance->availableMonths(),
+            'trend'             => $this->finance->trend($month),
+            'paymentReport'     => $this->finance->paymentReport($month),
+            'expenseByCategory' => $this->finance->expenseByCategory($month),
         ]);
     }
 
