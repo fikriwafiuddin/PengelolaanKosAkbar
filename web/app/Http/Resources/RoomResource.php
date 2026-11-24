@@ -27,7 +27,16 @@ class RoomResource extends JsonResource
             // URL relatif (/storage/rooms/xxx.png); klien mobile tinggal
             // menggabungkan dengan base URL API-nya.
             'image_url' => $this->when($this->image_path, $this->image_url),
-            'facilities' => FacilityResource::collection($this->whenLoaded('facilities')),
+            // Koleksi di-resolve ke array polos: object AnonymousResourceCollection
+            // yang lolos dari resolve() koleksi LUAR masih Responsable, dan
+            // PropsResolver Inertia memprosesnya via toResponse() sehingga
+            // terbungkus {'data': [...]} — .map() di klien web gagal (fix
+            // error "facilities.map is not a function" di halaman cetak
+            // katalog). Bentuk JSON jalur API tidak berubah.
+            'facilities' => $this->whenLoaded(
+                'facilities',
+                fn ($facilities) => FacilityResource::collection($facilities)->resolve(),
+            ),
         ];
     }
 }

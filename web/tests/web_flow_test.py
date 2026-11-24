@@ -209,7 +209,8 @@ def main():
     status, body, _ = fetch('/rooms/print', headers=inertia)
     page = json.loads(body)
     print_rooms = page['props']['rooms']
-    check('GET /rooms/print', page['component'] == 'rooms/print' and len(print_rooms) == 29)
+    check('GET /rooms/print', page['component'] == 'rooms/print' and len(print_rooms) == 29
+          and all(isinstance(r.get('facilities'), list) for r in print_rooms))
 
     # CRUD kamar: tambah -> ubah -> hapus
     facility_id = None
